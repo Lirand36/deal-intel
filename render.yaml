@@ -1,0 +1,19 @@
+# Render Blueprint: New → Blueprint → pick this repo. Creates the web app.
+services:
+  - type: web
+    name: deal-intel
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    healthCheckPath: /login
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_PASSWORD
+        sync: false # Render asks you for it when you create the Blueprint
+      - key: HUBSPOT_TOKEN
+        sync: false # HubSpot private app token (read deals, contacts, notes, calls, meetings, emails)

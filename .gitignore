@@ -1,0 +1,15 @@
+node_modules/
+coverage/
+dist/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+out/
+.data/
+.next/
+next-env.d.ts
+.claude/settings.local.json
+.claude/launch.json
+*.tsbuildinfo
