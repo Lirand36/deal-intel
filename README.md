@@ -43,7 +43,9 @@ HUBSPOT_TOKEN=pat-... npm run unseed
 ## Deploy (Render)
 
 New → Blueprint → pick this repo. Render reads `render.yaml`, generates `SESSION_SECRET` and asks
-for `ADMIN_PASSWORD` (12+ characters) and `HUBSPOT_TOKEN`. Pushes to `main` redeploy.
+for `ADMIN_PASSWORD` (12+ characters) and `HUBSPOT_TOKEN`. Leave the token empty to start on demo
+data (`DEMO_DATA=1` is preset); add it later under Environment and the app switches to HubSpot.
+Pushes to `main` redeploy.
 
 ## Develop
 

@@ -16,4 +16,6 @@ services:
       - key: ADMIN_PASSWORD
         sync: false # Render asks you for it when you create the Blueprint
       - key: HUBSPOT_TOKEN
-        sync: false # HubSpot private app token (read deals, contacts, notes, calls, meetings, emails)
+        sync: false # HubSpot private app token; leave empty to run on demo data
+      - key: DEMO_DATA
+        value: "1" # sample deals while HUBSPOT_TOKEN is empty; ignored once a token is set
