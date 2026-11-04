@@ -7,6 +7,7 @@ import {
   summarize,
   type WonLost,
 } from "@/core/analysis";
+import { forecast, type QuarterForecast } from "@/core/forecast";
 import { scoreDeal } from "@/core/score";
 import { DEFAULT_STAGES, generateSeed, seedToDeal } from "@/core/seedData";
 import type { ScoredDeal, Stage } from "@/core/types";
@@ -22,6 +23,7 @@ export interface Dashboard {
   readonly summary: Summary;
   readonly wonLost: WonLost;
   readonly lossReasons: readonly LossReason[];
+  readonly quarters: readonly QuarterForecast[];
   readonly currency: string;
   readonly fetchedAt: Date;
   /** True when showing generated sample deals instead of HubSpot. */
@@ -52,6 +54,7 @@ async function build(token: string | null): Promise<Dashboard> {
     summary: summarize(deals, snapshot.stages),
     wonLost: compareWonLost(deals),
     lossReasons: lossReasons(deals),
+    quarters: forecast(deals, now),
     currency: snapshot.currency,
     fetchedAt: snapshot.fetchedAt,
     demo: token === null,

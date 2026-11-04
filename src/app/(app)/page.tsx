@@ -1,156 +1,197 @@
 import Link from "next/link";
-import { Bar, Flags, Kpi, Notice, PageHeader, TierBadge } from "@/components/ui";
+import { QuarterRail, railTotal } from "@/components/QuarterRail";
+import { Flags, Notice, TierBadge } from "@/components/ui";
+import { type Category, categoryOf, type QuarterForecast } from "@/core/forecast";
 import { pageData } from "@/lib/data";
-import { day, money, num, pct } from "@/lib/format";
+import { day, money } from "@/lib/format";
 
-const AT_RISK_LIMIT = 8;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-export default async function PipelineHealthPage() {
+const CATEGORY_STYLE: Record<Category, { label: string; className: string }> = {
+  commit: { label: "Commit", className: "bg-accent-soft text-accent" },
+  bestCase: { label: "Best case", className: "bg-surface-alt text-ink" },
+  pipeline: { label: "Pipeline", className: "border border-line text-muted" },
+};
+
+function daysLeft(f: QuarterForecast, now: Date): number {
+  return Math.max(0, Math.ceil((f.quarter.end.getTime() - now.getTime()) / DAY_MS));
+}
+
+function Callout({
+  tone,
+  title,
+  detail,
+  href,
+}: {
+  tone: "warn" | "bad";
+  title: string;
+  detail: string;
+  href: string;
+}) {
+  const style = tone === "bad" ? "bg-bad-soft text-bad" : "bg-warn-soft text-warn";
+  return (
+    <Link
+      href={href}
+      className={`block rounded-2xl px-4 py-3 transition hover:opacity-85 ${style}`}
+    >
+      <div className="text-sm font-semibold">{title}</div>
+      <div className="mt-0.5 text-xs opacity-90">{detail}</div>
+    </Link>
+  );
+}
+
+export default async function QuarterPage() {
   const data = await pageData();
   if (!data) return null;
-  const { summary, currency } = data;
-  const open = data.deals.filter((d) => d.deal.outcome === "open");
-  const atRisk = [...open]
-    .filter((d) => d.tier !== "healthy")
-    .sort((a, b) => a.score - b.score || (b.deal.amount ?? 0) - (a.deal.amount ?? 0))
-    .slice(0, AT_RISK_LIMIT);
-  const maxStageAmount = Math.max(1, ...summary.stages.map((s) => s.amount));
-  const tierTotal = Math.max(1, summary.openCount);
+  const { currency } = data;
+  const [current, ...later] = data.quarters;
+  if (!current) return null;
+  const now = data.fetchedAt;
+  const scale = Math.max(...data.quarters.map(railTotal));
 
   return (
     <>
-      <PageHeader
-        title="Pipeline health"
-        intro="Every open deal scored 0–100 on buyer engagement signals pulled live from HubSpot. Scores update when you refresh."
-      />
+      <header className="mb-7">
+        <p className="text-sm font-medium text-accent">
+          {current.quarter.label} · {daysLeft(current, now)} days left
+        </p>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight">Quarter forecast</h1>
+      </header>
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi
-          label="Open pipeline"
-          value={money(summary.openAmount, currency)}
-          hint={`${summary.openCount} deals`}
-        />
-        <Kpi
-          label="Weighted"
-          value={money(summary.weightedAmount, currency)}
-          hint="by stage probability"
-        />
-        <Kpi
-          label="Win rate"
-          value={pct(summary.winRate)}
-          hint={`${summary.wonCount} won · ${summary.lostCount} lost`}
-        />
-        <Kpi
-          label="Won deal size"
-          value={money(summary.avgWonAmount, currency)}
-          hint={`median cycle ${num(summary.medianWonCycleDays, 0)} days`}
-        />
-      </section>
-
-      <section className="mt-6 grid gap-6 lg:grid-cols-5">
-        <div className="card p-5 lg:col-span-3">
-          <h2 className="text-sm font-semibold">Open pipeline by stage</h2>
-          {summary.stages.length === 0 ? (
-            <p className="mt-3 text-sm text-muted">No open stages.</p>
-          ) : (
-            <table className="mt-4 w-full text-sm">
-              <tbody>
-                {summary.stages.map((row) => (
-                  <tr key={row.stage.id} className="align-middle">
-                    <td className="w-40 py-2 pr-3 text-muted">{row.stage.label}</td>
-                    <td className="py-2 pr-3">
-                      <Bar value={row.amount} max={maxStageAmount} />
-                    </td>
-                    <td className="w-10 py-2 pr-3 text-right tabular-nums text-muted">
-                      {row.count}
-                    </td>
-                    <td className="w-20 py-2 text-right font-medium tabular-nums">
-                      {money(row.amount, currency)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        <div className="card p-5 lg:col-span-2">
-          <h2 className="text-sm font-semibold">Health of open deals</h2>
-          <div className="mt-4 flex h-3 overflow-hidden rounded-full bg-surface-alt">
-            <div
-              className="bg-good"
-              style={{ width: `${(summary.tiers.healthy / tierTotal) * 100}%` }}
-            />
-            <div
-              className="bg-warn"
-              style={{ width: `${(summary.tiers.watch / tierTotal) * 100}%` }}
-            />
-            <div
-              className="bg-bad"
-              style={{ width: `${(summary.tiers.atRisk / tierTotal) * 100}%` }}
-            />
+      <section className="card p-6 md:p-8">
+        <div className="flex flex-wrap items-end justify-between gap-6">
+          <div>
+            <div className="text-sm text-muted">Forecast floor · closed won + commit</div>
+            <div className="mt-1 text-5xl font-bold tracking-tight tabular-nums">
+              {money(current.floor, currency)}
+            </div>
+            <div className="mt-2 text-sm text-muted">
+              Upside with best case{" "}
+              <span className="font-semibold text-ink tabular-nums">
+                {money(current.upside, currency)}
+              </span>
+              {" · "}weighted open{" "}
+              <span className="font-semibold text-ink tabular-nums">
+                {money(current.weighted, currency)}
+              </span>
+            </div>
           </div>
-          <dl className="mt-4 space-y-2 text-sm">
-            {(["healthy", "watch", "atRisk"] as const).map((tier) => (
-              <div key={tier} className="flex items-center justify-between">
-                <dt>
-                  <TierBadge tier={tier} />
-                </dt>
-                <dd className="tabular-nums">{summary.tiers[tier]}</dd>
-              </div>
-            ))}
-          </dl>
+          <div className="grid w-full gap-2 sm:w-72">
+            {current.commitAtRisk > 0 && (
+              <Callout
+                tone="bad"
+                title={`${money(current.commitAtRisk, currency)} of commit is at risk`}
+                detail="Commit deals with weak engagement"
+                href="/deals?outcome=open&tier=atRisk"
+              />
+            )}
+            {current.overdue.count > 0 && (
+              <Callout
+                tone="warn"
+                title={`${current.overdue.count} deals past their close date`}
+                detail={`${money(current.overdue.amount, currency)} to close or move`}
+                href="/deals?outcome=open&sort=close"
+              />
+            )}
+          </div>
+        </div>
+        <div className="mt-8">
+          <QuarterRail forecast={current} scale={scale} currency={currency} />
         </div>
       </section>
 
-      <section className="card mt-6 overflow-hidden">
-        <div className="flex items-baseline justify-between px-5 pt-5">
-          <h2 className="text-sm font-semibold">Deals that need attention</h2>
-          <Link href="/deals?outcome=open" className="text-xs text-accent hover:underline">
-            All open deals →
-          </Link>
+      <section className="mt-5 grid gap-5 md:grid-cols-2">
+        {later.map((f) => (
+          <div key={f.quarter.key} className="card p-5">
+            <div className="flex items-baseline justify-between">
+              <h2 className="font-semibold">{f.quarter.label}</h2>
+              <span className="text-xs text-muted">{f.openCount} open deals</span>
+            </div>
+            <div className="mt-3 flex items-baseline gap-4">
+              <div>
+                <div className="text-2xl font-bold tabular-nums">{money(f.weighted, currency)}</div>
+                <div className="text-xs text-muted">weighted pipeline</div>
+              </div>
+              <div>
+                <div className="text-lg font-semibold tabular-nums text-muted">
+                  {money(f.upside, currency)}
+                </div>
+                <div className="text-xs text-muted">commit + best case</div>
+              </div>
+            </div>
+            <div className="mt-4">
+              <QuarterRail
+                forecast={f}
+                scale={scale}
+                currency={currency}
+                showLegend={false}
+                size="sm"
+              />
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <section className="card mt-5 overflow-hidden">
+        <div className="px-6 pt-5">
+          <h2 className="font-semibold">Deals that decide {current.quarter.label}</h2>
+          <p className="mt-0.5 text-sm text-muted">Commit first, then the largest deals.</p>
         </div>
-        {atRisk.length === 0 ? (
-          <div className="p-5">
-            <Notice>No open deals below the healthy line.</Notice>
+        {current.movers.length === 0 ? (
+          <div className="p-6">
+            <Notice>No open deals close this quarter.</Notice>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="mt-3 w-full min-w-[640px] text-sm">
-              <thead className="eyebrow border-b border-line text-left">
+            <table className="mt-3 w-full min-w-[720px] text-sm">
+              <thead className="border-b border-line text-left text-xs text-muted">
                 <tr>
-                  <th className="px-5 py-2 font-semibold">Deal</th>
-                  <th className="px-3 py-2 font-semibold">Health</th>
-                  <th className="px-3 py-2 text-right font-semibold">Amount</th>
-                  <th className="px-3 py-2 font-semibold">Close</th>
-                  <th className="px-5 py-2 font-semibold">Why</th>
+                  <th className="px-6 py-2 font-medium">Deal</th>
+                  <th className="px-3 py-2 font-medium">Forecast</th>
+                  <th className="px-3 py-2 font-medium">Health</th>
+                  <th className="px-3 py-2 text-right font-medium">Amount</th>
+                  <th className="px-3 py-2 font-medium">Close</th>
+                  <th className="px-6 py-2 font-medium">Watch out</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {atRisk.map((d) => (
-                  <tr key={d.deal.id} className="hover:bg-surface-alt">
-                    <td className="px-5 py-2.5">
-                      <Link href={`/deals/${d.deal.id}`} className="font-medium hover:text-accent">
-                        {d.deal.name}
-                      </Link>
-                      <div className="text-xs text-muted">
-                        {data.stages.get(d.deal.stageId)?.label}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <TierBadge tier={d.tier} score={d.score} />
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums">
-                      {money(d.deal.amount, currency)}
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-muted">
-                      {day(d.deal.closeDate)}
-                    </td>
-                    <td className="px-5 py-2.5">
-                      <Flags flags={d.flags} />
-                    </td>
-                  </tr>
-                ))}
+                {current.movers.map((d) => {
+                  const category = CATEGORY_STYLE[categoryOf(d.deal.probability)];
+                  return (
+                    <tr key={d.deal.id} className="hover:bg-surface-alt/60">
+                      <td className="px-6 py-3">
+                        <Link
+                          href={`/deals/${d.deal.id}`}
+                          className="font-medium hover:text-accent"
+                        >
+                          {d.deal.name}
+                        </Link>
+                        <div className="text-xs text-muted">
+                          {data.stages.get(d.deal.stageId)?.label}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${category.className}`}
+                        >
+                          {category.label}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <TierBadge tier={d.tier} score={d.score} />
+                      </td>
+                      <td className="px-3 py-3 text-right font-semibold tabular-nums">
+                        {money(d.deal.amount, currency)}
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap text-muted">
+                        {day(d.deal.closeDate)}
+                      </td>
+                      <td className="px-6 py-3">
+                        <Flags flags={d.flags} />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

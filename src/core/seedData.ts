@@ -327,7 +327,7 @@ function makeDeal(
     finalClose =
       profileKey === "atRisk" && rand() < 0.6
         ? shift(now, -int(rand, 3, 20))
-        : shift(now, int(rand, 10, 90));
+        : shift(now, int(rand, 10, 200));
     stage = pick(rand, OPEN_STAGES);
   } else {
     finalClose = shift(now, -int(rand, 5, 150));
@@ -369,12 +369,14 @@ export function generateSeed(now: Date, seed = 42): SeedDeal[] {
         usedEmails,
       ),
     )
-    .map((deal, i, all) =>
-      // Two companies may get the same product; keep deal names unique so results can be matched.
-      all.findIndex((d) => d.dealname === deal.dealname) === i
-        ? deal
-        : { ...deal, dealname: `${deal.dealname} (${i + 1})` },
-    );
+    .map((deal, i, all) => {
+      // A company with two deals may draw the same product twice. Deal names must stay unique so
+      // the seed script can match created records, so switch to a product that company lacks.
+      const earlier = new Set(all.slice(0, i).map((d) => d.dealname));
+      if (!earlier.has(deal.dealname)) return deal;
+      const product = PRODUCTS.find((p) => !earlier.has(`${deal.company} - ${p}`));
+      return { ...deal, dealname: `${deal.company} - ${product ?? `Deal ${i + 1}`}` };
+    });
 }
 
 /** HubSpot's default sales pipeline, used when showing seed data without a portal. */

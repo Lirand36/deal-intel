@@ -4,7 +4,7 @@ import type { Outcome, RiskFlag, Tier } from "@/core/types";
 export function PageHeader({ title, intro }: { title: string; intro: string }) {
   return (
     <header className="mb-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+      <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
       <p className="mt-1 max-w-2xl text-sm text-muted">{intro}</p>
     </header>
   );

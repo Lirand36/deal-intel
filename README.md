@@ -1,12 +1,13 @@
 # Deal Intel
 
-Live deal health and win/loss signals from HubSpot. Every deal is scored 0–100 on six buyer
+Quarter forecast, deal health and win/loss signals from HubSpot. Every deal is scored 0–100 on six buyer
 engagement signals (multi-threading, recent activity, meetings, days since last touch, close date
 slips, next step). Closed deals are scored as they stood on their close date, so the Won vs lost
 page shows which signals actually separate wins from losses in your pipeline.
 
 ## Pages
 
+- **Quarter forecast** — this quarter and the next two: closed won, commit, best case and pipeline, the forecast floor and upside, commit at risk, overdue deals, and the deals that decide the quarter.
 - **Pipeline health** — open pipeline, weighted value, win rate, stage breakdown and the deals that need attention.
 - **Deals** — every deal with its score and risk flags; filter, sort, search, and drill into a deal.
 - **Won vs lost** — signal medians for won vs lost deals, win rate when each signal is strong vs weak, loss reasons.
