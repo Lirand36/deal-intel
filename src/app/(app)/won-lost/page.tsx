@@ -1,82 +1,67 @@
-import { Bar, Kpi, Notice, PageHeader } from "@/components/ui";
-import { weakestStrongBand } from "@/core/rubric";
+import { Bar, Notice, PageHeader } from "@/components/ui";
+import { winRate } from "@/core/analysis";
+import { GRADE_LABELS, type Grade, type WinFactor } from "@/core/winFactors";
 import { pageData } from "@/lib/data";
-import { money, num, pct } from "@/lib/format";
+import { money, pct } from "@/lib/format";
+
+const GRADE_STYLE: Record<Grade, string> = {
+  big: "bg-accent text-on-accent",
+  clear: "bg-accent-soft text-accent",
+  small: "bg-surface-alt text-ink",
+  none: "bg-surface-alt text-muted",
+  unknown: "border border-line text-muted",
+};
+
+/** "Deals that held 2+ meetings won 91%. Those that held fewer won 18%." */
+function sentence(f: WinFactor): string {
+  return `Deals that ${f.withIt.phrase} won ${pct(f.withIt.winRate)}. Those that ${f.without.phrase} won ${pct(f.without.winRate)}.`;
+}
 
 export default async function WonLostPage() {
   const data = await pageData();
   if (!data) return null;
   const { wonLost, currency } = data;
-  const lowSample = wonLost.signals.some((s) => s.lowSample);
+  const graded = data.winFactors.filter((f) => f.grade !== "unknown");
+  const unknown = data.winFactors.filter((f) => f.grade === "unknown");
   const maxReason = Math.max(1, ...data.lossReasons.map((r) => r.count));
 
   return (
     <>
       <PageHeader
         title="Won vs lost"
-        intro="What separated deals you won from deals you lost, measured at each deal's close date. Use it to check the rubric and see which habits actually move win rate."
+        intro={`${wonLost.wonCount} won, ${wonLost.lostCount} lost · win rate ${pct(winRate(data.deals))}`}
       />
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Won" value={String(wonLost.wonCount)} />
-        <Kpi label="Lost" value={String(wonLost.lostCount)} />
-        <Kpi label="Avg score · won" value={num(wonLost.wonAvgScore, 0)} hint="at close" />
-        <Kpi label="Avg score · lost" value={num(wonLost.lostAvgScore, 0)} hint="at close" />
-      </section>
-
-      {lowSample && (
-        <div className="mt-4">
-          <Notice>
-            Fewer than 5 won or lost deals so far — treat these splits as early hints, not findings.
-          </Notice>
-        </div>
-      )}
-
-      <section className="card mt-6 overflow-x-auto">
-        <table className="w-full min-w-[720px] text-sm">
-          <thead className="eyebrow border-b border-line text-left">
-            <tr>
-              <th className="px-5 py-2.5 font-semibold">Signal</th>
-              <th className="px-3 py-2.5 text-right font-semibold">Median · won</th>
-              <th className="px-3 py-2.5 text-right font-semibold">Median · lost</th>
-              <th className="w-64 px-5 py-2.5 font-semibold">Win rate when strong vs weak</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {wonLost.signals.map((s) => (
-              <tr key={s.rule.key}>
-                <td className="px-5 py-3">
-                  <div className="font-medium">{s.rule.name}</div>
-                  <div className="text-xs text-muted">
-                    Strong = {weakestStrongBand(s.rule).label} or better
-                  </div>
-                </td>
-                <td className="px-3 py-3 text-right tabular-nums text-won">{num(s.wonMedian)}</td>
-                <td className="px-3 py-3 text-right tabular-nums text-lost">{num(s.lostMedian)}</td>
-                <td className="px-5 py-3">
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="w-14 text-muted">Strong</span>
-                    <Bar value={s.strong.winRate ?? 0} max={1} tone="won" />
-                    <span className="w-16 text-right tabular-nums">
-                      {pct(s.strong.winRate)} <span className="text-muted">({s.strong.n})</span>
-                    </span>
-                  </div>
-                  <div className="mt-1.5 flex items-center gap-2 text-xs">
-                    <span className="w-14 text-muted">Weak</span>
-                    <Bar value={s.weak.winRate ?? 0} max={1} tone="lost" />
-                    <span className="w-16 text-right tabular-nums">
-                      {pct(s.weak.winRate)} <span className="text-muted">({s.weak.n})</span>
-                    </span>
-                  </div>
-                </td>
-              </tr>
+      <section>
+        <h2 className="text-lg font-bold">What wins deals here</h2>
+        {graded.length === 0 ? (
+          <div className="mt-3">
+            <Notice>Not enough closed deals yet to compare.</Notice>
+          </div>
+        ) : (
+          <ul className="card mt-3 divide-y divide-line overflow-hidden">
+            {graded.map((f) => (
+              <li key={f.key} className="flex items-start gap-4 px-5 py-4">
+                <span
+                  className={`mt-0.5 w-32 shrink-0 rounded-full px-2.5 py-0.5 text-center text-xs font-medium ${GRADE_STYLE[f.grade]}`}
+                >
+                  {GRADE_LABELS[f.grade]}
+                </span>
+                <p>{sentence(f)}</p>
+              </li>
             ))}
-          </tbody>
-        </table>
+          </ul>
+        )}
+        {unknown.length > 0 && (
+          <p className="mt-2 text-xs text-muted">
+            Not enough data yet on:{" "}
+            {unknown.map((f) => f.withIt.phrase.replace(/^had /, "")).join(", ")}.
+          </p>
+        )}
       </section>
 
-      <section className="card mt-6 p-5">
-        <h2 className="text-sm font-semibold">Why deals were lost</h2>
+      <section className="card mt-8 p-5">
+        <h2 className="font-bold">Why deals were lost</h2>
         {data.lossReasons.length === 0 ? (
           <p className="mt-3 text-sm text-muted">No lost deals yet.</p>
         ) : (
@@ -98,6 +83,11 @@ export default async function WonLostPage() {
           </table>
         )}
       </section>
+
+      <p className="mt-6 text-xs text-muted">
+        How it's graded: the gap between the two win rates. 40+ points is a big difference, 20+
+        clear, 10+ small. Closed deals are judged as they stood on their close date.
+      </p>
     </>
   );
 }

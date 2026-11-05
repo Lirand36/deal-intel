@@ -2,9 +2,10 @@ import type { z } from "zod";
 import type { Deal, Stage } from "@/core/types";
 import {
   ACTIVITY_OBJECTS,
+  ACTIVITY_TEXT,
   type ActivityObject,
   accountSchema,
-  activityTimes,
+  activityDetails,
   associatedIds,
   type BatchRead,
   batchReadSchema,
@@ -135,13 +136,24 @@ export async function fetchSnapshot(client: HubSpotClient): Promise<CrmSnapshot>
   const idsOf = (key: string) => [...new Set(rawDeals.flatMap((d) => associatedIds(d, key)))];
   const objects = Object.keys(ACTIVITY_OBJECTS) as ActivityObject[];
   const [times, companies, contacts, owners] = await Promise.all([
-    Promise.all(objects.map((o) => batchRead(client, o, idsOf(o), ["hs_timestamp"]))),
+    Promise.all(
+      objects.map(async (o) => {
+        const text = ACTIVITY_TEXT[o];
+        const raw = await batchRead(
+          client,
+          o,
+          idsOf(o),
+          text ? ["hs_timestamp", text] : ["hs_timestamp"],
+        );
+        return activityDetails(raw, text);
+      }),
+    ),
     batchRead(client, "companies", idsOf("companies"), COMPANY_PROPERTIES),
     batchRead(client, "contacts", idsOf("contacts"), CONTACT_PROPERTIES),
     readOwners(client),
   ]);
   const ctx = {
-    activityTimes: new Map(times.flatMap((t) => [...activityTimes(t)])),
+    activities: new Map(times.flatMap((t) => [...t])),
     companies: toCompanies(companies),
     contacts: toContacts(contacts),
     owners,

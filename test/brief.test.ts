@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { buildBrief, UNCONNECTED_SOURCES } from "@/core/brief";
+import { buildBrief, NO_CALL_NOTES, UNCONNECTED_SOURCES } from "@/core/brief";
 import { scoreDeal } from "@/core/score";
 import type { Deal } from "@/core/types";
 import { activity, daysAgo, makeDeal, NOW } from "./fixtures";
@@ -43,7 +43,8 @@ describe("buildBrief", () => {
       "Late stage: a written close plan can lock in the date",
     ]);
     expect(b.swot.opportunities.every((c) => c.tag === "inference")).toBe(true);
-    expect(b.gaps).toEqual(UNCONNECTED_SOURCES);
+    expect(b.gaps).toEqual([NO_CALL_NOTES, ...UNCONNECTED_SOURCES]);
+    expect(b.heard).toEqual([]);
     expect(b.action).toBeNull();
   });
 
@@ -73,5 +74,15 @@ describe("buildBrief", () => {
     const b = brief({ contactCount: 2, activities: [activity("call", 20)] });
     expect(b.gaps).toContain("Contacts are linked, but their names and titles couldn't be read.");
     expect(texts(b.swot.weaknesses)).toContain("No activity for 20 days");
+  });
+
+  test("quotes what the buyer said and drops the no-notes gap", () => {
+    const b = brief({
+      activities: [{ ...activity("call", 3), text: "Ana: The price is too high." }],
+    });
+    expect(b.heard.map((m) => [m.topic, m.speaker, m.quote])).toEqual([
+      ["price", "Ana", "The price is too high."],
+    ]);
+    expect(b.gaps).not.toContain(NO_CALL_NOTES);
   });
 });

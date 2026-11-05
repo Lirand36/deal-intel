@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Bar, OutcomeBadge, TierBadge } from "@/components/ui";
+import { OutcomeBadge } from "@/components/ui";
 import { buildBrief, type Claim, type Swot } from "@/core/brief";
-import { bandFor, RUBRIC } from "@/core/rubric";
+import { TOPIC_LABELS } from "@/core/conversation";
+import { storyFor, type Tone } from "@/core/story";
 import { pageData } from "@/lib/data";
 import { day, money } from "@/lib/format";
 
+/** Strengths and weaknesses are the health story above; only these two add new information. */
 const QUADRANTS: ReadonlyArray<readonly [keyof Swot, string]> = [
-  ["strengths", "Strengths"],
-  ["weaknesses", "Weaknesses"],
   ["opportunities", "Opportunities"],
   ["threats", "Threats"],
 ];
@@ -21,6 +21,25 @@ function TagChip({ tag }: { tag: Claim["tag"] }) {
   ) : (
     <span className="shrink-0 whitespace-nowrap rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-ink">
       our read
+    </span>
+  );
+}
+
+const TONE_ICON: Record<Tone, { mark: string; className: string; label: string }> = {
+  good: { mark: "✓", className: "bg-good-soft text-good", label: "Good" },
+  neutral: { mark: "•", className: "bg-surface-alt text-muted", label: "Okay" },
+  bad: { mark: "!", className: "bg-bad-soft text-bad", label: "Problem" },
+};
+
+function ToneIcon({ tone }: { tone: Tone }) {
+  const icon = TONE_ICON[tone];
+  return (
+    <span
+      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${icon.className}`}
+      role="img"
+      aria-label={icon.label}
+    >
+      {icon.mark}
     </span>
   );
 }
@@ -42,6 +61,7 @@ export default async function DealBriefPage({ params }: { params: Promise<{ id: 
   if (!scored) notFound();
   const { deal } = scored;
   const brief = buildBrief(scored, data.fetchedAt);
+  const story = storyFor(scored);
   const source = data.demo ? "Demo data" : "HubSpot";
 
   return (
@@ -78,6 +98,46 @@ export default async function DealBriefPage({ params }: { params: Promise<{ id: 
           <div className="text-xs font-medium text-muted">Do this next</div>
           <div className="mt-1 text-xl font-bold">{brief.action.play.title}</div>
           <p className="mt-1 text-muted">{brief.action.play.how}</p>
+        </section>
+      )}
+
+      <section className="card mt-6 p-6">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-lg font-bold">{story.headline}</h2>
+          <Link href="/rubric" className="text-xs text-muted hover:text-ink">
+            How health is judged
+          </Link>
+        </div>
+        <ul className="mt-4 space-y-2">
+          {story.lines.map((l) => (
+            <li key={l.text} className="flex items-start gap-2.5">
+              <ToneIcon tone={l.tone} />
+              <span>{l.text}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {brief.heard.length > 0 && (
+        <section className="card mt-6 p-6">
+          <div className="flex items-baseline justify-between">
+            <h2 className="font-bold">What they said</h2>
+            <span className="text-xs text-muted">From call notes · {source}</span>
+          </div>
+          <ul className="mt-4 space-y-3">
+            {brief.heard.map((m) => (
+              <li key={m.topic}>
+                <div className="text-xs font-medium text-muted">{TOPIC_LABELS[m.topic]}</div>
+                <blockquote className="mt-0.5">
+                  “{m.quote}”
+                  <span className="text-sm text-muted">
+                    {" "}
+                    · {m.speaker ?? "Buyer"}, {day(m.at)}
+                  </span>
+                </blockquote>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
@@ -142,29 +202,6 @@ export default async function DealBriefPage({ params }: { params: Promise<{ id: 
           ))}
         </ul>
       </section>
-
-      <details className="card mt-6 p-5">
-        <summary className="flex cursor-pointer items-center justify-between font-bold">
-          Health score
-          <TierBadge tier={scored.tier} score={scored.score} />
-        </summary>
-        <ul className="mt-4 space-y-3">
-          {RUBRIC.map((rule) => (
-            <li key={rule.key}>
-              <div className="flex justify-between text-sm">
-                <span>{rule.name}</span>
-                <span className="text-muted tabular-nums">
-                  {scored.points[rule.key]}/{rule.max} ·{" "}
-                  {bandFor(rule, scored.signals[rule.key]).label}
-                </span>
-              </div>
-              <div className="mt-1">
-                <Bar value={scored.points[rule.key]} max={rule.max} />
-              </div>
-            </li>
-          ))}
-        </ul>
-      </details>
     </>
   );
 }

@@ -16,7 +16,7 @@ export function ActionCard({ action, currency, variant = "row" }: Props) {
     return (
       <Link
         href={`/deals/${deal.id}`}
-        className="card group block border-highlight p-6 transition hover:shadow-[0_6px_24px_rgba(64,50,52,0.10)] md:p-8"
+        className="card group block border-highlight p-6 transition hover:shadow-[0_6px_24px_rgba(38,50,63,0.10)] md:p-8"
       >
         <div className="text-sm text-muted">{deal.name}</div>
         <div className="mt-2 text-2xl font-bold tracking-tight md:text-3xl">

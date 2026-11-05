@@ -7,6 +7,7 @@
 export const SEED_TAG = "dealintelseed";
 export const SEED_EMAIL_DOMAIN = "example.com";
 
+import type { Topic } from "./conversation";
 import type { Company, Deal, Stage } from "./types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -312,6 +313,78 @@ function makeContacts(
   });
 }
 
+/** Buyer lines per topic. Fictional, but phrased the way buyers talk on real calls. */
+const LINES: Readonly<Record<Topic, readonly string[]>> = {
+  pain: [
+    "Right now reconciling this by hand takes my team two days every month.",
+    "We keep missing renewals because nothing flags them in time.",
+    "Reporting is all spreadsheets and nobody trusts the numbers.",
+  ],
+  champion: [
+    "I'll take this to our leadership meeting on Thursday.",
+    "I'm happy to push this internally, I just need a one-pager.",
+  ],
+  economicBuyer: [
+    "Our CFO wants to see the ROI before she signs off.",
+    "I've looped in our VP, who owns the budget.",
+  ],
+  timeline: [
+    "We need this live before the end of the quarter.",
+    "Our contract with the current tool ends in March, so timing matters.",
+  ],
+  competitor: [
+    "We're also looking at another vendor that came in lower.",
+    "Honestly, the other tool we're evaluating has a nicer dashboard.",
+  ],
+  price: [
+    "The price is higher than we budgeted for this year.",
+    "Is there any flexibility on price? It feels expensive.",
+  ],
+};
+const OPENERS = ["Thanks for making time today.", "Quick check-in on where things stand."];
+
+/** Which topics each profile's buyers raise, and how likely each is. */
+const TOPIC_ODDS: Readonly<Record<ProfileKey, Partial<Record<Topic, number>>>> = {
+  won: { pain: 0.9, champion: 0.8, economicBuyer: 0.75, timeline: 0.7, competitor: 0.3 },
+  lost: { pain: 0.5, champion: 0.25, economicBuyer: 0.2, price: 0.7, competitor: 0.6 },
+  healthy: { pain: 1, champion: 1, timeline: 0.8, economicBuyer: 0.6 },
+  watch: { pain: 0.7, competitor: 0.4, price: 0.4 },
+  atRisk: { pain: 0.3, price: 0.5, competitor: 0.5 },
+};
+/** Objections go on the latest conversation, the rest from the first one on. */
+const OBJECTIONS: ReadonlySet<Topic> = new Set(["price", "competitor"]);
+
+/**
+ * Turns call and meeting activities into short transcripts. Uses its own random stream (from the
+ * deal name) so adding transcripts doesn't change any other generated value.
+ */
+function withTranscripts(
+  dealname: string,
+  profileKey: ProfileKey,
+  contacts: readonly SeedContact[],
+  activities: readonly SeedActivity[],
+): SeedActivity[] {
+  const rand = createRandom(hashOf(dealname));
+  const talks = activities.flatMap((a, i) => (a.type === "note" ? [] : [i]));
+  if (talks.length === 0) return [...activities];
+  const topics = (Object.entries(TOPIC_ODDS[profileKey]) as [Topic, number][])
+    .filter(([, odds]) => rand() < odds)
+    .map(([topic]) => topic);
+  const lineFor = new Map<number, string[]>();
+  topics.forEach((topic, n) => {
+    const slot = OBJECTIONS.has(topic)
+      ? (talks.at(-1) as number)
+      : (talks[n % talks.length] as number);
+    const speaker = (contacts[n % contacts.length] as SeedContact).firstname;
+    lineFor.set(slot, [...(lineFor.get(slot) ?? []), `${speaker}: ${pick(rand, LINES[topic])}`]);
+  });
+  return activities.map((a, i) =>
+    talks.includes(i)
+      ? { ...a, body: [`Rep: ${pick(rand, OPENERS)}`, ...(lineFor.get(i) ?? [])].join("\n") }
+      : a,
+  );
+}
+
 function makeActivities(rand: Random, profile: Profile, start: Date, asOf: Date): SeedActivity[] {
   const lastTouch = shift(asOf, -int(rand, ...profile.quietDays));
   const span = Math.max(1, Math.floor((lastTouch.getTime() - start.getTime()) / DAY_MS));
@@ -372,8 +445,9 @@ function makeDeal(
   }
   const asOf = outcome === "open" ? now : finalClose;
   const contacts = makeContacts(rand, company, int(rand, ...profile.contacts), usedEmails);
+  const dealname = `${company} - ${pick(rand, PRODUCTS)}`;
   return {
-    dealname: `${company} - ${pick(rand, PRODUCTS)}`,
+    dealname,
     company,
     firmographics: firmographicsFor(company),
     owner,
@@ -385,7 +459,12 @@ function makeDeal(
     nextStep: rand() < profile.nextStepChance ? pick(rand, NEXT_STEPS) : null,
     lostReason: outcome === "lost" ? pick(rand, LOST_REASONS) : null,
     contacts,
-    activities: makeActivities(rand, profile, createdAt, asOf),
+    activities: withTranscripts(
+      dealname,
+      profileKey,
+      contacts,
+      makeActivities(rand, profile, createdAt, asOf),
+    ),
   };
 }
 
@@ -450,7 +529,12 @@ export function seedToDeal(seed: SeedDeal, index: number): Deal {
     })),
     company: { name: seed.company, ...seed.firmographics },
     owner: seed.owner,
-    activities: seed.activities.map((a, j) => ({ id: `${id}-${j}`, type: a.type, at: a.at })),
+    activities: seed.activities.map((a, j) => ({
+      id: `${id}-${j}`,
+      type: a.type,
+      at: a.at,
+      text: a.body,
+    })),
     nextStep: seed.nextStep,
     lostReason: seed.lostReason,
     url: "#",

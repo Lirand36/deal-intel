@@ -11,8 +11,8 @@ One question per audience:
 
 - **Quarter** (CRO / VP Sales) — will we hit quota this quarter, and which 3 deals decide it?
 - **My day** (AE) — the one action to take today, and on which deal. Each action opens an
-  **account brief**: company, buying group, and a SWOT where every line is tagged *evidence* or
-  *our read*, plus what the brief can't see (built on the `account-research-brief` skill).
+  **account brief**: company, buying group, and a SWOT where every line is tagged _evidence_ or
+  _our read_, plus what the brief can't see (built on the `account-research-brief` skill).
 
 Supporting pages under "More": all deals, won vs lost, pipeline health, scoring rubric.
 

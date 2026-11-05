@@ -27,6 +27,12 @@ export const PLAYS: readonly Play[] = [
     lift: 0.2,
   },
   {
+    flag: "competitor",
+    title: "Win the comparison",
+    how: "Ask what they like about the other option, then send one proof point that beats it.",
+    lift: 0.15,
+  },
+  {
     flag: "singleThreaded",
     title: "Get a second contact",
     how: "Ask your champion to bring in the economic buyer.",
@@ -37,6 +43,12 @@ export const PLAYS: readonly Play[] = [
     title: "Book a live meeting",
     how: "Propose a 30-minute working session on their use case.",
     lift: 0.15,
+  },
+  {
+    flag: "priceObjection",
+    title: "Re-anchor on value",
+    how: "Tie the price to the cost of their problem before offering any discount.",
+    lift: 0.1,
   },
   {
     flag: "repeatedSlips",

@@ -19,7 +19,7 @@ const SECTIONS = [
       { href: "/deals", label: "All deals" },
       { href: "/won-lost", label: "Won vs lost" },
       { href: "/pipeline", label: "Pipeline health" },
-      { href: "/rubric", label: "Scoring rubric" },
+      { href: "/rubric", label: "How health works" },
     ],
   },
 ] as const;
@@ -54,12 +54,12 @@ export function Sidebar() {
                   href={link.href}
                   className={`flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-sm transition ${
                     active
-                      ? "bg-surface font-semibold text-ink shadow-[0_1px_3px_rgba(64,50,52,0.08)]"
-                      : "hover:bg-surface/60 hover:text-ink"
+                      ? "bg-accent-soft font-semibold text-ink"
+                      : "hover:bg-surface-alt hover:text-ink"
                   }`}
                 >
                   <span
-                    className={`h-1.5 w-1.5 rounded-full ${active ? "bg-highlight" : "bg-transparent"}`}
+                    className={`h-1.5 w-1.5 rounded-full ${active ? "bg-accent" : "bg-transparent"}`}
                     aria-hidden="true"
                   />
                   {link.label}

@@ -1,69 +1,69 @@
 @import "tailwindcss";
 
 :root {
-  /* Palette: #F7F3F5 blush white · #E2C2B3 rose sand · #687477 slate · #403234 cocoa */
-  --canvas: #f7f3f5;
+  /* "Frozen lake": slate gray, icy blue, snow white. */
+  --canvas: #f6f9fc;
   --surface: #ffffff;
-  --surface-alt: #f0e8eb;
-  --ink: #403234;
-  --muted: #687477;
-  --line: #e8dde1;
-  --accent: #403234;
-  --on-accent: #f7f3f5;
-  --accent-soft: #f3e4dd;
-  --highlight: #e2c2b3;
-  --good: #4f7a63;
-  --good-soft: #e4eee8;
-  --warn: #9a5f2b;
-  --warn-soft: #f6e9dc;
-  --bad: #a8474b;
-  --bad-soft: #f5e1e1;
-  --won: #6f9c84;
-  --lost: #c9787b;
-  --side: #efe7ea;
-  --side-line: #e3d7db;
-  --side-text: #687477;
+  --surface-alt: #eef4fa;
+  --ink: #26323f;
+  --muted: #66758a;
+  --line: #e1e9f1;
+  --accent: #2f6fad;
+  --on-accent: #ffffff;
+  --accent-soft: #e3eef9;
+  --highlight: #bcd9f2;
+  --good: #2e7d5b;
+  --good-soft: #e3f3ea;
+  --warn: #a8641c;
+  --warn-soft: #fbefe0;
+  --bad: #b8434a;
+  --bad-soft: #fbe6e7;
+  --won: #4fa77f;
+  --lost: #d9777d;
+  --side: #ffffff;
+  --side-line: #e1e9f1;
+  --side-text: #66758a;
   /* Forecast categories: darkest = most certain. */
-  --cat-closed: #403234;
-  --cat-commit: #687477;
-  --cat-best: #e2c2b3;
-  --cat-pipeline: #e9dfe3;
+  --cat-closed: #26323f;
+  --cat-commit: #2f6fad;
+  --cat-best: #9cc6ec;
+  --cat-pipeline: #e1ebf5;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --canvas: #221a1b;
-    --surface: #2d2325;
-    --surface-alt: #372b2e;
-    --ink: #f7f3f5;
-    --muted: #a9b3b5;
-    --line: #45383b;
-    --accent: #e2c2b3;
-    --on-accent: #403234;
-    --accent-soft: #4a3a37;
-    --highlight: #e2c2b3;
-    --good: #93c2a4;
-    --good-soft: #24322a;
-    --warn: #e0b07a;
-    --warn-soft: #3a2c1d;
-    --bad: #e39a9c;
-    --bad-soft: #3d2426;
-    --won: #93c2a4;
-    --lost: #e39a9c;
-    --side: #2a2022;
-    --side-line: #3d3133;
-    --side-text: #a9b3b5;
-    --cat-closed: #f7f3f5;
-    --cat-commit: #a9b3b5;
-    --cat-best: #e2c2b3;
-    --cat-pipeline: #4a3d40;
+    --canvas: #0f161e;
+    --surface: #17212c;
+    --surface-alt: #1e2a37;
+    --ink: #e8eff6;
+    --muted: #93a3b5;
+    --line: #283646;
+    --accent: #7fb6ea;
+    --on-accent: #0f161e;
+    --accent-soft: #1b3148;
+    --highlight: #3c6a96;
+    --good: #6fcf9f;
+    --good-soft: #15302a;
+    --warn: #f0b66e;
+    --warn-soft: #33281a;
+    --bad: #f08e93;
+    --bad-soft: #3a1e22;
+    --won: #6fcf9f;
+    --lost: #f08e93;
+    --side: #131c26;
+    --side-line: #253343;
+    --side-text: #93a3b5;
+    --cat-closed: #e8eff6;
+    --cat-commit: #7fb6ea;
+    --cat-best: #3c6a96;
+    --cat-pipeline: #2a3a4c;
     color-scheme: dark;
   }
 }
 
 @theme inline {
-  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
   --color-surface-alt: var(--surface-alt);
@@ -97,7 +97,7 @@ body {
 }
 
 @utility card {
-  @apply rounded-2xl border border-line bg-surface shadow-[0_1px_3px_rgba(64,50,52,0.05)];
+  @apply rounded-2xl border border-line bg-surface shadow-[0_1px_3px_rgba(38,50,63,0.05)];
 }
 @utility btn {
   @apply inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50;

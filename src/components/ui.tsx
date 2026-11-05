@@ -1,5 +1,6 @@
 import { FLAG_LABELS } from "@/core/score";
-import type { Outcome, RiskFlag, Tier } from "@/core/types";
+import { tierWord } from "@/core/story";
+import type { Outcome, RiskFlag, ScoredDeal, Tier } from "@/core/types";
 
 export function PageHeader({ title, intro }: { title: string; intro: string }) {
   return (
@@ -20,25 +21,30 @@ export function Kpi({ label, value, hint }: { label: string; value: string; hint
   );
 }
 
-const TIER_STYLE: Record<Tier, { label: string; className: string }> = {
-  healthy: { label: "Healthy", className: "bg-good-soft text-good" },
-  watch: { label: "Watch", className: "bg-warn-soft text-warn" },
-  atRisk: { label: "At risk", className: "bg-bad-soft text-bad" },
+const TIER_STYLE: Record<Tier, string> = {
+  healthy: "bg-good-soft text-good",
+  watch: "bg-warn-soft text-warn",
+  atRisk: "bg-bad-soft text-bad",
 };
 
-export function TierBadge({ tier, score }: { tier: Tier; score?: number }) {
-  const style = TIER_STYLE[tier];
+export function TierBadge({ tier }: { tier: Tier }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.className}`}
+      className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${TIER_STYLE[tier]}`}
     >
-      {score !== undefined && <span className="tabular-nums font-semibold">{score}</span>}
-      {style.label}
+      {tierWord(tier)}
     </span>
   );
 }
 
-export const tierLabel = (tier: Tier) => TIER_STYLE[tier].label;
+/** Health only means something for open deals; closed ones show their outcome instead. */
+export function HealthCell({ deal }: { deal: ScoredDeal }) {
+  return deal.deal.outcome === "open" ? (
+    <TierBadge tier={deal.tier} />
+  ) : (
+    <span className="text-xs text-muted">—</span>
+  );
+}
 
 const OUTCOME_STYLE: Record<Outcome, string> = {
   won: "bg-good-soft text-good",

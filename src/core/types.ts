@@ -5,6 +5,8 @@ export interface Activity {
   readonly id: string;
   readonly type: ActivityType;
   readonly at: Date;
+  /** Logged notes or transcript, when the source has any. */
+  readonly text: string | null;
 }
 
 export interface Stage {
@@ -68,7 +70,9 @@ export type RiskFlag =
   | "noMeetings"
   | "closeDatePassed"
   | "repeatedSlips"
-  | "noNextStep";
+  | "noNextStep"
+  | "competitor"
+  | "priceObjection";
 
 export interface ScoredDeal {
   readonly deal: Deal;

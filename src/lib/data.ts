@@ -12,6 +12,7 @@ import { forecast, type QuarterForecast } from "@/core/forecast";
 import { scoreDeal } from "@/core/score";
 import { DEFAULT_STAGES, generateSeed, seedToDeal } from "@/core/seedData";
 import type { ScoredDeal, Stage } from "@/core/types";
+import { type WinFactor, winFactors } from "@/core/winFactors";
 import { requireSession } from "./auth";
 import { demoMode, hubspotToken, quarterQuota } from "./env";
 import { type CrmSnapshot, createClient, fetchSnapshot, HubSpotError } from "./hubspot";
@@ -28,6 +29,7 @@ export interface Dashboard {
   /** Open-deal actions, biggest impact first. */
   readonly actions: readonly Action[];
   readonly quota: number | null;
+  readonly winFactors: readonly WinFactor[];
   readonly currency: string;
   readonly fetchedAt: Date;
   /** True when showing generated sample deals instead of HubSpot. */
@@ -61,6 +63,7 @@ async function build(token: string | null): Promise<Dashboard> {
     quarters: forecast(deals, now),
     actions: actionsFor(deals, now),
     quota: quarterQuota(),
+    winFactors: winFactors(deals),
     currency: snapshot.currency,
     fetchedAt: snapshot.fetchedAt,
     demo: token === null,

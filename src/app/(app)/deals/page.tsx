@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Flags, Notice, OutcomeBadge, PageHeader, TierBadge } from "@/components/ui";
+import { Flags, HealthCell, Notice, OutcomeBadge, PageHeader, TierBadge } from "@/components/ui";
 import type { Outcome, ScoredDeal, Tier } from "@/core/types";
 import { pageData } from "@/lib/data";
 import { day, money } from "@/lib/format";
@@ -86,7 +86,12 @@ export default async function DealsPage({
               current={t === tier}
               params={{ ...params, tier: t }}
               label={
-                { all: "Any health", healthy: "Healthy", watch: "Watch", atRisk: "At risk" }[t]
+                {
+                  all: "Any health",
+                  healthy: "Healthy",
+                  watch: "Needs attention",
+                  atRisk: "At risk",
+                }[t]
               }
             />
           ))}
@@ -151,7 +156,7 @@ export default async function DealsPage({
                     <OutcomeBadge outcome={d.deal.outcome} />
                   </td>
                   <td className="px-3 py-2.5">
-                    <TierBadge tier={d.tier} score={d.score} />
+                    <HealthCell deal={d} />
                   </td>
                   <td className="px-3 py-2.5 text-right tabular-nums">
                     {money(d.deal.amount, data.currency)}

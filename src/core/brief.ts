@@ -4,6 +4,7 @@
  * nothing is said out loud instead of padded over. Nothing here is invented.
  */
 import { type Action, bestAction } from "./actions";
+import { hasConversations, latestByTopic, type Mention, mentionsIn } from "./conversation";
 import type { Company, Contact, ScoredDeal } from "./types";
 
 export type Tag = "evidence" | "inference";
@@ -23,6 +24,8 @@ export interface Swot {
 export interface Brief {
   readonly company: Company | null;
   readonly buyingGroup: readonly Contact[];
+  /** Latest thing the buyer said on each topic, from call and meeting notes. */
+  readonly heard: readonly Mention[];
   readonly swot: Swot;
   /** Sources with nothing to say about this account, in plain words. */
   readonly gaps: readonly string[];
@@ -37,9 +40,10 @@ const ECONOMIC_BUYER = /\b(cfo|ceo|coo|cro|chief|vp|vice president|head of|direc
 
 /** Sources the app doesn't read yet. Listed so the AE knows what the brief can't see. */
 export const UNCONNECTED_SOURCES = [
-  "No call recordings connected: pains, objections and quotes are not in this brief.",
   "No hiring or news source connected: no live buying signals.",
 ] as const;
+export const NO_CALL_NOTES =
+  "No call notes or transcripts logged, so nothing the buyer said is here.";
 
 const evidence = (text: string): Claim => ({ text, tag: "evidence" });
 const inference = (text: string): Claim => ({ text, tag: "inference" });
@@ -109,11 +113,15 @@ export function buildBrief(d: ScoredDeal, now: Date): Brief {
         ? "Contacts are linked, but their names and titles couldn't be read."
         : "No contacts linked to this deal in HubSpot.",
     ),
+    ...when(!hasConversations(deal.activities), NO_CALL_NOTES),
     ...UNCONNECTED_SOURCES,
   ];
   return {
     company: deal.company,
     buyingGroup: deal.contacts,
+    heard: Object.values(latestByTopic(mentionsIn(deal.activities))).filter(
+      (m): m is Mention => m !== undefined,
+    ),
     swot: swotFor(d, hasEconomicBuyer),
     gaps,
     action: bestAction(d, now),

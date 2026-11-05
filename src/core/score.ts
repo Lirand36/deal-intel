@@ -1,3 +1,4 @@
+import { mentionsIn, type Topic } from "./conversation";
 import { bandFor, NEVER_ACTIVE_DAYS, RECENT_WINDOW_DAYS, RUBRIC, tierFor } from "./rubric";
 import type { Deal, RiskFlag, ScoredDeal, SignalKey, SignalValues } from "./types";
 
@@ -28,8 +29,21 @@ export function computeSignals(deal: Deal, asOf: Date): SignalValues {
   };
 }
 
+/** Buyer topics count as live risks only if raised recently. */
+const LIVE_OBJECTION_DAYS = 30;
+
+function raisedRecently(deal: Deal, now: Date): Set<Topic> {
+  const since = now.getTime() - LIVE_OBJECTION_DAYS * DAY_MS;
+  return new Set(
+    mentionsIn(deal.activities)
+      .filter((m) => m.at.getTime() >= since)
+      .map((m) => m.topic),
+  );
+}
+
 export function riskFlags(deal: Deal, signals: SignalValues, now: Date): RiskFlag[] {
   if (deal.outcome !== "open") return [];
+  const recent = raisedRecently(deal, now);
   const checks: ReadonlyArray<readonly [RiskFlag, boolean]> = [
     ["singleThreaded", signals.contacts <= 1],
     ["goingDark", signals.daysSinceActivity > GOING_DARK_DAYS],
@@ -37,6 +51,8 @@ export function riskFlags(deal: Deal, signals: SignalValues, now: Date): RiskFla
     ["closeDatePassed", deal.closeDate !== null && deal.closeDate.getTime() < now.getTime()],
     ["repeatedSlips", signals.closeDateSlips >= REPEATED_SLIPS],
     ["noNextStep", signals.nextStep === 0],
+    ["competitor", recent.has("competitor")],
+    ["priceObjection", recent.has("price")],
   ];
   return checks.filter(([, hit]) => hit).map(([flag]) => flag);
 }
@@ -67,4 +83,6 @@ export const FLAG_LABELS: Readonly<Record<RiskFlag, string>> = {
   closeDatePassed: "Close date passed",
   repeatedSlips: "Close date pushed 2+ times",
   noNextStep: "No next step",
+  competitor: "Competitor in play",
+  priceObjection: "Price pushback",
 };

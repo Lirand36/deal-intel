@@ -11,7 +11,7 @@ let nextActivityId = 0;
 
 export function activity(type: Activity["type"], ago: number, from: Date = NOW): Activity {
   nextActivityId += 1;
-  return { id: String(nextActivityId), type, at: daysAgo(ago, from) };
+  return { id: String(nextActivityId), type, at: daysAgo(ago, from), text: null };
 }
 
 export function makeDeal(overrides: Partial<Deal> = {}): Deal {

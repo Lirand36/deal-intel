@@ -1,9 +1,10 @@
 import { describe, expect, test } from "vitest";
 import {
-  activityTimes,
+  activityDetails,
   countChanges,
   dealPageSchema,
   pipelinesSchema,
+  plainText,
   type RawDeal,
   toCompanies,
   toContacts,
@@ -13,9 +14,9 @@ import {
 } from "@/lib/normalize";
 
 const ctx = {
-  activityTimes: new Map([
-    ["n1", new Date("2026-10-01T00:00:00Z")],
-    ["m1", new Date("2026-10-05T00:00:00Z")],
+  activities: new Map([
+    ["n1", { at: new Date("2026-10-01T00:00:00Z"), text: null }],
+    ["m1", { at: new Date("2026-10-05T00:00:00Z"), text: "Ana: We do this by hand." }],
   ]),
   contacts: new Map([["c1", { id: "c1", name: "Ana Diaz", title: "CFO" }]]),
   companies: new Map([
@@ -152,15 +153,41 @@ describe("toStages", () => {
   });
 });
 
-describe("activityTimes", () => {
-  test("keeps only activities with a valid timestamp", () => {
-    const times = activityTimes({
-      results: [
-        { id: "1", properties: { hs_timestamp: "2026-10-01T00:00:00Z" } },
-        { id: "2", properties: { hs_timestamp: null } },
-      ],
-    });
-    expect([...times.keys()]).toEqual(["1"]);
+describe("activityDetails", () => {
+  test("keeps only activities with a valid timestamp, with their text as plain words", () => {
+    const details = activityDetails(
+      {
+        results: [
+          {
+            id: "1",
+            properties: { hs_timestamp: "2026-10-01T00:00:00Z", hs_call_body: "<p>Ana: hi</p>" },
+          },
+          { id: "2", properties: { hs_timestamp: null } },
+        ],
+      },
+      "hs_call_body",
+    );
+    expect([...details.entries()]).toEqual([
+      ["1", { at: new Date("2026-10-01T00:00:00Z"), text: "Ana: hi" }],
+    ]);
+  });
+
+  test("ignores text when the object has no text property", () => {
+    const details = activityDetails(
+      { results: [{ id: "1", properties: { hs_timestamp: "2026-10-01T00:00:00Z", x: "y" } }] },
+      null,
+    );
+    expect(details.get("1")?.text).toBeNull();
+  });
+});
+
+describe("plainText", () => {
+  test("turns HubSpot HTML into lines of words", () => {
+    expect(plainText("<p>Ana: it&#39;s &amp; done</p><p>Tom:&nbsp;ok<br>next</p>")).toBe(
+      "Ana: it's & done\nTom: ok\nnext",
+    );
+    expect(plainText("<p> </p>")).toBeNull();
+    expect(plainText(undefined)).toBeNull();
   });
 });
 

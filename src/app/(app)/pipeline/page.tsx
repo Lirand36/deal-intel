@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bar, Flags, Kpi, Notice, PageHeader, TierBadge } from "@/components/ui";
+import { Bar, Flags, HealthCell, Kpi, Notice, PageHeader, TierBadge } from "@/components/ui";
 import { pageData } from "@/lib/data";
 import { day, money, num, pct } from "@/lib/format";
 
@@ -138,7 +138,7 @@ export default async function PipelineHealthPage() {
                       </div>
                     </td>
                     <td className="px-3 py-2.5">
-                      <TierBadge tier={d.tier} score={d.score} />
+                      <HealthCell deal={d} />
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums">
                       {money(d.deal.amount, currency)}

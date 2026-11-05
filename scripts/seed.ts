@@ -21,6 +21,12 @@ const ASSOC = {
 } as const;
 
 const MEETING_MINUTES = 45;
+/** HubSpot shows activity text as HTML; keep each speaker on their own line. */
+const html = (text: string) =>
+  text
+    .split("\n")
+    .map((line) => `<p>${line}</p>`)
+    .join("");
 const CALL_MS = 15 * 60 * 1000;
 
 const to = (id: string, typeId: number) => ({
@@ -37,7 +43,7 @@ function activityInput(a: SeedActivity, dealId: string, contactId: string | unde
           ASSOC.meetingToContact,
           {
             hs_meeting_title: a.title,
-            hs_meeting_body: a.body,
+            hs_meeting_body: html(a.body),
             hs_meeting_start_time: at,
             hs_meeting_end_time: new Date(a.at.getTime() + MEETING_MINUTES * 60_000).toISOString(),
             hs_meeting_outcome: "COMPLETED",
@@ -49,13 +55,13 @@ function activityInput(a: SeedActivity, dealId: string, contactId: string | unde
             ASSOC.callToContact,
             {
               hs_call_title: a.title,
-              hs_call_body: a.body,
+              hs_call_body: html(a.body),
               hs_call_status: "COMPLETED",
               hs_call_direction: "OUTBOUND",
               hs_call_duration: String(CALL_MS),
             },
           ]
-        : [ASSOC.noteToDeal, ASSOC.noteToContact, { hs_note_body: a.body }];
+        : [ASSOC.noteToDeal, ASSOC.noteToContact, { hs_note_body: html(a.body) }];
   return {
     properties: { hs_timestamp: at, ...properties },
     associations: [to(dealId, toDeal), ...(contactId ? [to(contactId, toContact)] : [])],

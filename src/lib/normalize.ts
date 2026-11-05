@@ -10,6 +10,19 @@ export const ACTIVITY_OBJECTS = {
 } as const satisfies Record<string, ActivityType>;
 export type ActivityObject = keyof typeof ACTIVITY_OBJECTS;
 
+/** Where each activity keeps its text. Email bodies are deliberately not read. */
+export const ACTIVITY_TEXT: Readonly<Record<ActivityObject, string | null>> = {
+  notes: "hs_note_body",
+  calls: "hs_call_body",
+  meetings: "hs_meeting_body",
+  emails: null,
+};
+
+export interface ActivityDetail {
+  readonly at: Date;
+  readonly text: string | null;
+}
+
 export const DEAL_PROPERTIES = [
   "dealname",
   "amount",
@@ -146,8 +159,8 @@ export function associatedIds(deal: RawDeal, key: string): string[] {
 }
 
 export interface DealContext {
-  /** Activity timestamps by HubSpot object id. */
-  readonly activityTimes: ReadonlyMap<string, Date>;
+  /** Activity time and text by HubSpot object id. */
+  readonly activities: ReadonlyMap<string, ActivityDetail>;
   readonly contacts: ReadonlyMap<string, Contact>;
   readonly companies: ReadonlyMap<string, Company>;
   /** Owner display names by HubSpot owner id. */
@@ -160,8 +173,8 @@ export function toDeal(raw: RawDeal, ctx: DealContext): Deal {
   const activities: Activity[] = (Object.keys(ACTIVITY_OBJECTS) as ActivityObject[]).flatMap(
     (key) =>
       associatedIds(raw, key).flatMap((id) => {
-        const at = ctx.activityTimes.get(id);
-        return at ? [{ id, type: ACTIVITY_OBJECTS[key], at }] : [];
+        const detail = ctx.activities.get(id);
+        return detail ? [{ id, type: ACTIVITY_OBJECTS[key], ...detail }] : [];
       }),
   );
   return {
@@ -191,11 +204,33 @@ export function toDeal(raw: RawDeal, ctx: DealContext): Deal {
   };
 }
 
-export function activityTimes(raw: z.infer<typeof batchReadSchema>): Map<string, Date> {
+/** HubSpot stores notes as HTML; keep the words and line breaks only. */
+export function plainText(html: string | null | undefined): string | null {
+  if (!html) return null;
+  const text = html
+    .replace(/<br\s*\/?>|<\/(p|div|li)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n\s*\n+/g, "\n")
+    .trim();
+  return text || null;
+}
+
+export function activityDetails(
+  raw: z.infer<typeof batchReadSchema>,
+  textProperty: string | null,
+): Map<string, ActivityDetail> {
   return new Map(
     raw.results.flatMap((r) => {
       const at = toDate(r.properties.hs_timestamp);
-      return at ? [[r.id, at] as const] : [];
+      const text = textProperty ? plainText(r.properties[textProperty]) : null;
+      return at ? [[r.id, { at, text }] as const] : [];
     }),
   );
 }
