@@ -1,4 +1,5 @@
 import "server-only";
+import { type Action, actionsFor } from "@/core/actions";
 import {
   compareWonLost,
   type LossReason,
@@ -12,7 +13,7 @@ import { scoreDeal } from "@/core/score";
 import { DEFAULT_STAGES, generateSeed, seedToDeal } from "@/core/seedData";
 import type { ScoredDeal, Stage } from "@/core/types";
 import { requireSession } from "./auth";
-import { demoMode, hubspotToken } from "./env";
+import { demoMode, hubspotToken, quarterQuota } from "./env";
 import { type CrmSnapshot, createClient, fetchSnapshot, HubSpotError } from "./hubspot";
 
 const CACHE_MS = 5 * 60 * 1000;
@@ -24,6 +25,9 @@ export interface Dashboard {
   readonly wonLost: WonLost;
   readonly lossReasons: readonly LossReason[];
   readonly quarters: readonly QuarterForecast[];
+  /** Open-deal actions, biggest impact first. */
+  readonly actions: readonly Action[];
+  readonly quota: number | null;
   readonly currency: string;
   readonly fetchedAt: Date;
   /** True when showing generated sample deals instead of HubSpot. */
@@ -55,6 +59,8 @@ async function build(token: string | null): Promise<Dashboard> {
     wonLost: compareWonLost(deals),
     lossReasons: lossReasons(deals),
     quarters: forecast(deals, now),
+    actions: actionsFor(deals, now),
+    quota: quarterQuota(),
     currency: snapshot.currency,
     fetchedAt: snapshot.fetchedAt,
     demo: token === null,

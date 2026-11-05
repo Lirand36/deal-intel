@@ -7,7 +7,7 @@
 export const SEED_TAG = "dealintelseed";
 export const SEED_EMAIL_DOMAIN = "example.com";
 
-import type { Deal, Stage } from "./types";
+import type { Company, Deal, Stage } from "./types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SLIP_DAYS = 14;
@@ -43,6 +43,41 @@ export interface SeedDeal {
   readonly lostReason: string | null;
   readonly contacts: readonly SeedContact[];
   readonly activities: readonly SeedActivity[];
+  readonly firmographics: Omit<Company, "name">;
+  /** Made-up rep name. Not written to HubSpot, which can't create owners. */
+  readonly owner: string;
+}
+
+const INDUSTRIES = [
+  "Financial services",
+  "Healthcare",
+  "Logistics",
+  "Retail",
+  "Manufacturing",
+  "Software",
+  "Energy",
+  "Media",
+];
+const COUNTRIES = ["United States", "United Kingdom", "Germany", "Canada", "Netherlands", "Israel"];
+const SIZES = [80, 240, 650, 1_400, 3_200, 8_500];
+export const DEMO_REPS = ["Avery Cole", "Jordan Reyes", "Sam Whitfield", "Noa Levin"] as const;
+
+/** Stable small hash so a company always gets the same made-up profile. */
+function hashOf(text: string): number {
+  return [...text].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 7);
+}
+
+export function firmographicsFor(company: string): Omit<Company, "name"> {
+  const h = hashOf(company);
+  const industry = INDUSTRIES[h % INDUSTRIES.length] as string;
+  const slug = company.toLowerCase().replace(/[^a-z]+/g, "");
+  return {
+    domain: `${slug}.${SEED_EMAIL_DOMAIN}`,
+    industry,
+    employees: SIZES[(h >>> 3) % SIZES.length] as number,
+    country: COUNTRIES[(h >>> 6) % COUNTRIES.length] as string,
+    description: `${company} is a fictional ${industry.toLowerCase()} company used as test data.`,
+  };
 }
 
 const COMPANIES = [
@@ -225,7 +260,7 @@ const PROFILES: Record<"won" | "lost" | OpenHealth, Profile> = {
     contacts: [1, 3],
     meetings: [1, 2],
     others: [1, 3],
-    quietDays: [6, 21],
+    quietDays: [3, 21],
     slips: [0, 1],
     nextStepChance: 0.5,
   },
@@ -314,6 +349,7 @@ function makeDeal(
   outcome: SeedOutcome,
   profileKey: ProfileKey,
   usedEmails: Set<string>,
+  owner: string,
 ): SeedDeal {
   const profile = PROFILES[profileKey];
   const amount = Math.round(int(rand, 8_000, 150_000) / 500) * 500;
@@ -339,6 +375,8 @@ function makeDeal(
   return {
     dealname: `${company} - ${pick(rand, PRODUCTS)}`,
     company,
+    firmographics: firmographicsFor(company),
+    owner,
     amount,
     stage,
     outcome,
@@ -367,6 +405,7 @@ export function generateSeed(now: Date, seed = 42): SeedDeal[] {
         outcome,
         profileKey,
         usedEmails,
+        DEMO_REPS[i % DEMO_REPS.length] as string,
       ),
     )
     .map((deal, i, all) => {
@@ -404,6 +443,13 @@ export function seedToDeal(seed: SeedDeal, index: number): Deal {
     closeDate: seed.closeDates.at(-1) ?? null,
     closeDateChanges: seed.closeDates.length - 1,
     contactCount: seed.contacts.length,
+    contacts: seed.contacts.map((c, j) => ({
+      id: `${id}-c${j}`,
+      name: `${c.firstname} ${c.lastname}`,
+      title: c.jobtitle,
+    })),
+    company: { name: seed.company, ...seed.firmographics },
+    owner: seed.owner,
     activities: seed.activities.map((a, j) => ({ id: `${id}-${j}`, type: a.type, at: a.at })),
     nextStep: seed.nextStep,
     lostReason: seed.lostReason,

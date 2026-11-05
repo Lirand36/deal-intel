@@ -34,3 +34,14 @@ export function hubspotToken(): string | null {
 export function demoMode(): boolean {
   return process.env.DEMO_DATA === "1";
 }
+
+/** Demo quota, picked so the sample quarter needs its best-case deals to land. */
+const DEMO_QUOTA = 550_000;
+
+/** QUARTER_QUOTA: one quota for every quarter until territories exist. Null when unset. */
+export function quarterQuota(): number | null {
+  const raw = process.env.QUARTER_QUOTA?.trim();
+  const n = raw ? Number(raw) : Number.NaN;
+  if (Number.isFinite(n) && n > 0) return n;
+  return demoMode() && !hubspotToken() ? DEMO_QUOTA : null;
+}

@@ -137,3 +137,22 @@ export function forecastQuarter(
 export function forecast(deals: readonly ScoredDeal[], now: Date): QuarterForecast[] {
   return upcomingQuarters(now).map((quarter) => forecastQuarter(deals, quarter, now));
 }
+
+export type VerdictStatus = "onTrack" | "needsBestCase" | "short";
+
+export interface Verdict {
+  readonly status: VerdictStatus;
+  readonly quota: number;
+  /** Quota minus forecast floor; zero or less means covered. */
+  readonly gap: number;
+  /** How far upside falls short of quota even if every best-case deal lands. */
+  readonly shortEvenWithUpside: number;
+}
+
+/** Will the quarter hit quota? Judged on floor first, then on upside. */
+export function verdictFor(f: QuarterForecast, quota: number): Verdict {
+  const gap = quota - f.floor;
+  const status: VerdictStatus =
+    gap <= 0 ? "onTrack" : f.upside >= quota ? "needsBestCase" : "short";
+  return { status, quota, gap, shortEvenWithUpside: Math.max(0, quota - f.upside) };
+}

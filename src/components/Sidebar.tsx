@@ -7,17 +7,18 @@ import { Logo } from "./Logo";
 
 const SECTIONS = [
   {
-    title: "Revenue",
+    title: "Focus",
     links: [
-      { href: "/", label: "Quarter forecast" },
-      { href: "/pipeline", label: "Pipeline health" },
-      { href: "/won-lost", label: "Won vs lost" },
+      { href: "/", label: "Quarter" },
+      { href: "/today", label: "My day" },
     ],
   },
   {
-    title: "Deals",
+    title: "More",
     links: [
       { href: "/deals", label: "All deals" },
+      { href: "/won-lost", label: "Won vs lost" },
+      { href: "/pipeline", label: "Pipeline health" },
       { href: "/rubric", label: "Scoring rubric" },
     ],
   },
@@ -53,12 +54,12 @@ export function Sidebar() {
                   href={link.href}
                   className={`flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-sm transition ${
                     active
-                      ? "bg-surface font-semibold text-ink shadow-[0_1px_3px_rgba(18,48,74,0.08)]"
+                      ? "bg-surface font-semibold text-ink shadow-[0_1px_3px_rgba(64,50,52,0.08)]"
                       : "hover:bg-surface/60 hover:text-ink"
                   }`}
                 >
                   <span
-                    className={`h-1.5 w-1.5 rounded-full ${active ? "bg-accent" : "bg-transparent"}`}
+                    className={`h-1.5 w-1.5 rounded-full ${active ? "bg-highlight" : "bg-transparent"}`}
                     aria-hidden="true"
                   />
                   {link.label}

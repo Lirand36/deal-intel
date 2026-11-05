@@ -21,18 +21,24 @@ async function associated(api: Api, toObject: string, dealIds: string[]): Promis
   return [...ids];
 }
 
-async function seededContacts(api: Api, ids: string[]): Promise<string[]> {
+/** Only records whose email or domain is on the seed's example.com domain, never real ones. */
+async function seededOnly(
+  api: Api,
+  object: "contacts" | "companies",
+  ids: string[],
+): Promise<string[]> {
+  const field = object === "contacts" ? "email" : "domain";
   const keep: string[] = [];
   for (const batch of chunks(ids)) {
-    const res = await api<{ results: { id: string; properties: { email?: string | null } }[] }>(
+    const res = await api<{ results: { id: string; properties: Record<string, string | null> }[] }>(
       "POST",
-      "/crm/v3/objects/contacts/batch/read",
-      { inputs: batch.map((id) => ({ id })), properties: ["email"] },
+      `/crm/v3/objects/${object}/batch/read`,
+      { inputs: batch.map((id) => ({ id })), properties: [field] },
     );
     keep.push(
       ...res.results
-        .filter((c) => c.properties.email?.endsWith(`.${SEED_EMAIL_DOMAIN}`))
-        .map((c) => c.id),
+        .filter((r) => r.properties[field]?.endsWith(`.${SEED_EMAIL_DOMAIN}`))
+        .map((r) => r.id),
     );
   }
   return keep;
@@ -57,11 +63,13 @@ async function main(): Promise<void> {
   for (const object of ["meetings", "calls", "notes"]) {
     await archive(api, object, await associated(api, object, dealIds));
   }
-  await archive(
-    api,
-    "contacts",
-    await seededContacts(api, await associated(api, "contacts", dealIds)),
-  );
+  for (const object of ["contacts", "companies"] as const) {
+    await archive(
+      api,
+      object,
+      await seededOnly(api, object, await associated(api, object, dealIds)),
+    );
+  }
   await archive(api, "deals", dealIds);
 }
 

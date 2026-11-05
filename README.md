@@ -7,16 +7,22 @@ page shows which signals actually separate wins from losses in your pipeline.
 
 ## Pages
 
-- **Quarter forecast** — this quarter and the next two: closed won, commit, best case and pipeline, the forecast floor and upside, commit at risk, overdue deals, and the deals that decide the quarter.
-- **Pipeline health** — open pipeline, weighted value, win rate, stage breakdown and the deals that need attention.
-- **Deals** — every deal with its score and risk flags; filter, sort, search, and drill into a deal.
-- **Won vs lost** — signal medians for won vs lost deals, win rate when each signal is strong vs weak, loss reasons.
-- **Scoring rubric** — exactly how points are given.
+One question per audience:
+
+- **Quarter** (CRO / VP Sales) — will we hit quota this quarter, and which 3 deals decide it?
+- **My day** (AE) — the one action to take today, and on which deal. Each action opens an
+  **account brief**: company, buying group, and a SWOT where every line is tagged *evidence* or
+  *our read*, plus what the brief can't see (built on the `account-research-brief` skill).
+
+Supporting pages under "More": all deals, won vs lost, pipeline health, scoring rubric.
+
+Set `QUARTER_QUOTA` (a number, e.g. `900000`) to compare each quarter with its target.
 
 ## HubSpot token
 
 Create a private app in HubSpot (Settings → Integrations → Private apps) with these read scopes:
-`crm.objects.deals.read`, `crm.objects.contacts.read`, `crm.schemas.deals.read`, plus notes, calls,
+`crm.objects.deals.read`, `crm.objects.contacts.read`, `crm.objects.companies.read`,
+`crm.objects.owners.read`, `crm.schemas.deals.read`, plus notes, calls,
 meetings and emails read access (`crm.objects.notes.read` etc., or `sales-email-read`). The seed
 script also needs the matching **write** scopes for deals, contacts, notes, calls and meetings.
 
@@ -32,8 +38,8 @@ Set `DEMO_DATA=1` and leave `HUBSPOT_TOKEN` empty to see the dashboard with gene
 
 ## Test data
 
-`npm run seed` writes 38 made-up deals (12 won, 10 lost, 16 open) with contacts, meetings, calls and
-notes into the portal the token belongs to. Use a test portal. Every deal is tagged, and
+`npm run seed` writes 38 made-up deals (12 won, 10 lost, 16 open) with companies, contacts, meetings,
+calls and notes into the portal the token belongs to. Use a test portal. Every deal is tagged, and
 `npm run unseed` moves exactly those records to HubSpot's recycle bin.
 
 ```bash

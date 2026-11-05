@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit --incremental false",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "seed": "tsx scripts/seed.ts",

@@ -6,12 +6,19 @@ import {
   accountSchema,
   activityTimes,
   associatedIds,
+  type BatchRead,
   batchReadSchema,
+  COMPANY_PROPERTIES,
+  CONTACT_PROPERTIES,
   DEAL_PROPERTIES,
   dealPageSchema,
+  ownersSchema,
   pipelinesSchema,
   type RawDeal,
+  toCompanies,
+  toContacts,
   toDeal,
+  toOwners,
   toStages,
 } from "./normalize";
 
@@ -63,7 +70,7 @@ async function listDeals(client: HubSpotClient): Promise<RawDeal[]> {
     limit: String(PAGE_SIZE),
     properties: DEAL_PROPERTIES.join(","),
     propertiesWithHistory: "closedate",
-    associations: ["contacts", ...Object.keys(ACTIVITY_OBJECTS)].join(","),
+    associations: ["contacts", "companies", ...Object.keys(ACTIVITY_OBJECTS)].join(","),
   });
   const deals: RawDeal[] = [];
   let after: string | undefined;
@@ -78,11 +85,12 @@ async function listDeals(client: HubSpotClient): Promise<RawDeal[]> {
   return deals;
 }
 
-async function readTimestamps(
+async function batchRead(
   client: HubSpotClient,
-  object: ActivityObject,
+  object: string,
   ids: readonly string[],
-): Promise<Map<string, Date>> {
+  properties: readonly string[],
+): Promise<BatchRead> {
   const batches = Array.from({ length: Math.ceil(ids.length / BATCH_SIZE) }, (_, i) =>
     ids.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE),
   );
@@ -90,12 +98,25 @@ async function readTimestamps(
     batches.map((batch) =>
       client.post(
         `/crm/v3/objects/${object}/batch/read`,
-        { inputs: batch.map((id) => ({ id })), properties: ["hs_timestamp"] },
+        { inputs: batch.map((id) => ({ id })), properties },
         batchReadSchema,
       ),
     ),
   );
-  return new Map(results.flatMap((r) => [...activityTimes(r)]));
+  return { results: results.flatMap((r) => r.results) };
+}
+
+/** Owner names need their own scope; without it deals simply show no owner. */
+async function readOwners(client: HubSpotClient): Promise<Map<string, string>> {
+  try {
+    return toOwners(await client.get("/crm/v3/owners?limit=500", ownersSchema));
+  } catch (error) {
+    if (error instanceof HubSpotError && error.status === 403) {
+      console.warn("[deal-intel] Token lacks crm.objects.owners.read; deals will show no owner");
+      return new Map();
+    }
+    throw error;
+  }
 }
 
 export interface CrmSnapshot {
@@ -111,16 +132,19 @@ export async function fetchSnapshot(client: HubSpotClient): Promise<CrmSnapshot>
     client.get("/account-info/v3/details", accountSchema),
     listDeals(client),
   ]);
+  const idsOf = (key: string) => [...new Set(rawDeals.flatMap((d) => associatedIds(d, key)))];
   const objects = Object.keys(ACTIVITY_OBJECTS) as ActivityObject[];
-  const times = await Promise.all(
-    objects.map((object) =>
-      readTimestamps(client, object, [
-        ...new Set(rawDeals.flatMap((d) => associatedIds(d, object))),
-      ]),
-    ),
-  );
+  const [times, companies, contacts, owners] = await Promise.all([
+    Promise.all(objects.map((o) => batchRead(client, o, idsOf(o), ["hs_timestamp"]))),
+    batchRead(client, "companies", idsOf("companies"), COMPANY_PROPERTIES),
+    batchRead(client, "contacts", idsOf("contacts"), CONTACT_PROPERTIES),
+    readOwners(client),
+  ]);
   const ctx = {
-    activityTimes: new Map(times.flatMap((m) => [...m])),
+    activityTimes: new Map(times.flatMap((t) => [...activityTimes(t)])),
+    companies: toCompanies(companies),
+    contacts: toContacts(contacts),
+    owners,
     recordUrl: (id: string) =>
       `https://${account.uiDomain}/contacts/${account.portalId}/record/0-3/${id}`,
   };

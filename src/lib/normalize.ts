@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Activity, ActivityType, Deal, Outcome, Stage } from "@/core/types";
+import type { Activity, ActivityType, Company, Contact, Deal, Outcome, Stage } from "@/core/types";
 
 /** HubSpot association keys on a deal, and the activity type each one holds. */
 export const ACTIVITY_OBJECTS = {
@@ -22,7 +22,29 @@ export const DEAL_PROPERTIES = [
   "hs_deal_stage_probability",
   "hs_next_step",
   "closed_lost_reason",
+  "hubspot_owner_id",
 ] as const;
+
+export const COMPANY_PROPERTIES = [
+  "name",
+  "domain",
+  "industry",
+  "numberofemployees",
+  "country",
+  "description",
+] as const;
+export const CONTACT_PROPERTIES = ["firstname", "lastname", "jobtitle"] as const;
+
+export const ownersSchema = z.object({
+  results: z.array(
+    z.object({
+      id: z.string(),
+      firstName: z.string().nullable().optional(),
+      lastName: z.string().nullable().optional(),
+      email: z.string().nullable().optional(),
+    }),
+  ),
+});
 
 const props = z.record(z.string(), z.string().nullable().optional());
 const assocList = z.object({ results: z.array(z.object({ id: z.string() })) });
@@ -126,6 +148,10 @@ export function associatedIds(deal: RawDeal, key: string): string[] {
 export interface DealContext {
   /** Activity timestamps by HubSpot object id. */
   readonly activityTimes: ReadonlyMap<string, Date>;
+  readonly contacts: ReadonlyMap<string, Contact>;
+  readonly companies: ReadonlyMap<string, Company>;
+  /** Owner display names by HubSpot owner id. */
+  readonly owners: ReadonlyMap<string, string>;
   readonly recordUrl: (dealId: string) => string;
 }
 
@@ -149,6 +175,15 @@ export function toDeal(raw: RawDeal, ctx: DealContext): Deal {
     closeDate: toDate(p.closedate),
     closeDateChanges: countChanges(raw.propertiesWithHistory?.closedate ?? []),
     contactCount: associatedIds(raw, "contacts").length,
+    contacts: associatedIds(raw, "contacts").flatMap((id) => {
+      const contact = ctx.contacts.get(id);
+      return contact ? [contact] : [];
+    }),
+    company:
+      associatedIds(raw, "companies")
+        .map((id) => ctx.companies.get(id))
+        .find((c) => c !== undefined) ?? null,
+    owner: (p.hubspot_owner_id && ctx.owners.get(p.hubspot_owner_id)) || null,
     activities,
     nextStep: text(p.hs_next_step),
     lostReason: text(p.closed_lost_reason),
@@ -161,6 +196,47 @@ export function activityTimes(raw: z.infer<typeof batchReadSchema>): Map<string,
     raw.results.flatMap((r) => {
       const at = toDate(r.properties.hs_timestamp);
       return at ? [[r.id, at] as const] : [];
+    }),
+  );
+}
+
+export type BatchRead = z.infer<typeof batchReadSchema>;
+
+export function toCompanies(raw: BatchRead): Map<string, Company> {
+  return new Map(
+    raw.results.map((r) => [
+      r.id,
+      {
+        name: text(r.properties.name) ?? `Company ${r.id}`,
+        domain: text(r.properties.domain),
+        industry: text(r.properties.industry),
+        employees: toNumber(r.properties.numberofemployees),
+        country: text(r.properties.country),
+        description: text(r.properties.description),
+      },
+    ]),
+  );
+}
+
+export function toContacts(raw: BatchRead): Map<string, Contact> {
+  return new Map(
+    raw.results.map((r) => {
+      const name = [text(r.properties.firstname), text(r.properties.lastname)]
+        .filter(Boolean)
+        .join(" ");
+      return [
+        r.id,
+        { id: r.id, name: name || `Contact ${r.id}`, title: text(r.properties.jobtitle) },
+      ];
+    }),
+  );
+}
+
+export function toOwners(raw: z.infer<typeof ownersSchema>): Map<string, string> {
+  return new Map(
+    raw.results.map((o) => {
+      const name = [text(o.firstName), text(o.lastName)].filter(Boolean).join(" ");
+      return [o.id, name || text(o.email) || `Owner ${o.id}`];
     }),
   );
 }

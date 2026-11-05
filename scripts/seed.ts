@@ -11,6 +11,7 @@ import { type Api, batchCreate, createApi, findSeededDealIds, requireToken } fro
 // HubSpot-defined association type ids.
 const ASSOC = {
   dealToContact: 3,
+  dealToCompany: 5,
   noteToDeal: 214,
   noteToContact: 202,
   callToDeal: 206,
@@ -64,6 +65,24 @@ function activityInput(a: SeedActivity, dealId: string, contactId: string | unde
 const OBJECT_FOR = { meeting: "meetings", call: "calls", note: "notes" } as const;
 
 async function seed(api: Api, deals: SeedDeal[]): Promise<void> {
+  const uniqueCompanies = [...new Map(deals.map((d) => [d.company, d])).values()];
+  const companies = await batchCreate(
+    api,
+    "companies",
+    uniqueCompanies.map((d) => ({
+      properties: {
+        name: d.company,
+        // Industry is a fixed HubSpot enum, so it stays out; the description names it instead.
+        domain: d.firmographics.domain ?? "",
+        numberofemployees: String(d.firmographics.employees ?? ""),
+        country: d.firmographics.country ?? "",
+        description: d.firmographics.description ?? "",
+      },
+    })),
+  );
+  const companyId = new Map(companies.map((c) => [c.properties.name ?? "", c.id]));
+  console.log(`Created ${companies.length} companies`);
+
   const contacts = await batchCreate(
     api,
     "contacts",
@@ -87,10 +106,15 @@ async function seed(api: Api, deals: SeedDeal[]): Promise<void> {
         ...(d.nextStep ? { hs_next_step: d.nextStep } : {}),
         ...(d.lostReason ? { closed_lost_reason: d.lostReason } : {}),
       },
-      associations: d.contacts.flatMap((c) => {
-        const id = contactId.get(c.email);
-        return id ? [to(id, ASSOC.dealToContact)] : [];
-      }),
+      associations: [
+        ...d.contacts.flatMap((c) => {
+          const id = contactId.get(c.email);
+          return id ? [to(id, ASSOC.dealToContact)] : [];
+        }),
+        ...(companyId.has(d.company)
+          ? [to(companyId.get(d.company) as string, ASSOC.dealToCompany)]
+          : []),
+      ],
     })),
   );
   const dealId = new Map(created.map((d) => [d.properties.dealname ?? "", d.id]));

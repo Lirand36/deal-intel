@@ -1,7 +1,7 @@
 export function Logo() {
   return (
     <div className="flex items-center gap-2.5">
-      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent text-white">
+      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent text-on-accent">
         <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
           <path
             d="M3 15l4-5 3 3 6-8"

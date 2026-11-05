@@ -5,7 +5,10 @@ import {
   dealPageSchema,
   pipelinesSchema,
   type RawDeal,
+  toCompanies,
+  toContacts,
   toDeal,
+  toOwners,
   toStages,
 } from "@/lib/normalize";
 
@@ -14,6 +17,21 @@ const ctx = {
     ["n1", new Date("2026-10-01T00:00:00Z")],
     ["m1", new Date("2026-10-05T00:00:00Z")],
   ]),
+  contacts: new Map([["c1", { id: "c1", name: "Ana Diaz", title: "CFO" }]]),
+  companies: new Map([
+    [
+      "co1",
+      {
+        name: "Globex",
+        domain: "globex.com",
+        industry: "Manufacturing",
+        employees: 500,
+        country: "Germany",
+        description: null,
+      },
+    ],
+  ]),
+  owners: new Map([["o1", "Pat Kim"]]),
   recordUrl: (id: string) => `https://app.hubspot.com/contacts/9/record/0-3/${id}`,
 };
 
@@ -33,6 +51,7 @@ const rawDeal = (overrides: Partial<RawDeal> = {}): RawDeal =>
           hs_deal_stage_probability: "0.9",
           hs_next_step: "",
           closed_lost_reason: null,
+          hubspot_owner_id: "o1",
         },
         propertiesWithHistory: {
           closedate: [
@@ -45,6 +64,7 @@ const rawDeal = (overrides: Partial<RawDeal> = {}): RawDeal =>
           contacts: { results: [{ id: "c1" }, { id: "c1" }, { id: "c2" }] },
           notes: { results: [{ id: "n1" }, { id: "missing" }] },
           meetings: { results: [{ id: "m1" }] },
+          companies: { results: [{ id: "co1" }] },
         },
         ...overrides,
       },
@@ -67,6 +87,9 @@ describe("toDeal", () => {
       url: "https://app.hubspot.com/contacts/9/record/0-3/77",
     });
     expect(deal.activities.map((a) => a.type).sort()).toEqual(["meeting", "note"]);
+    expect(deal.contacts).toEqual([{ id: "c1", name: "Ana Diaz", title: "CFO" }]);
+    expect(deal.company?.name).toBe("Globex");
+    expect(deal.owner).toBe("Pat Kim");
   });
 
   test("reads won and lost from HubSpot's closed flags", () => {
@@ -138,5 +161,33 @@ describe("activityTimes", () => {
       ],
     });
     expect([...times.keys()]).toEqual(["1"]);
+  });
+});
+
+describe("companies, contacts and owners", () => {
+  test("map batch reads into readable records with fallbacks", () => {
+    const companies = toCompanies({
+      results: [{ id: "1", properties: { name: "", numberofemployees: "250", country: "Israel" } }],
+    });
+    expect(companies.get("1")).toMatchObject({
+      name: "Company 1",
+      employees: 250,
+      country: "Israel",
+    });
+    const contacts = toContacts({
+      results: [
+        { id: "2", properties: { firstname: "Ana", lastname: null, jobtitle: "CFO" } },
+        { id: "3", properties: {} },
+      ],
+    });
+    expect([...contacts.values()].map((c) => c.name)).toEqual(["Ana", "Contact 3"]);
+    const owners = toOwners({
+      results: [
+        { id: "4", firstName: "Pat", lastName: "Kim" },
+        { id: "5", email: "rep@example.com" },
+        { id: "6" },
+      ],
+    });
+    expect([...owners.values()]).toEqual(["Pat Kim", "rep@example.com", "Owner 6"]);
   });
 });

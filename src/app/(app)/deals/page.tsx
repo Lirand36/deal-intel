@@ -33,7 +33,7 @@ function FilterLink({
     <Link
       href={`/deals?${new URLSearchParams(params)}`}
       className={`rounded-md px-2.5 py-1 text-xs font-medium ${
-        current ? "bg-accent text-white" : "text-muted hover:bg-surface-alt hover:text-ink"
+        current ? "bg-accent text-on-accent" : "text-muted hover:bg-surface-alt hover:text-ink"
       }`}
     >
       {label}

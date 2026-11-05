@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "account-research-brief": {
+      "source": "swan-gtm/gtm-skills",
+      "sourceType": "github",
+      "skillPath": "skills/amir-baldiga/account-research-brief/SKILL.md",
+      "computedHash": "f615b78ee76b9dd275a8ab1fe8750d1076556bcc6d6c8c807abba81fac252c9a"
+    }
+  }
+}

@@ -1,202 +1,137 @@
 import Link from "next/link";
-import { QuarterRail, railTotal } from "@/components/QuarterRail";
-import { Flags, Notice, TierBadge } from "@/components/ui";
-import { type Category, categoryOf, type QuarterForecast } from "@/core/forecast";
+import { QuarterRail } from "@/components/QuarterRail";
+import { Notice } from "@/components/ui";
+import { bestAction } from "@/core/actions";
+import { type QuarterForecast, type Verdict, verdictFor } from "@/core/forecast";
 import { pageData } from "@/lib/data";
 import { day, money } from "@/lib/format";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const DECIDING_DEALS = 3;
 
-const CATEGORY_STYLE: Record<Category, { label: string; className: string }> = {
-  commit: { label: "Commit", className: "bg-accent-soft text-accent" },
-  bestCase: { label: "Best case", className: "bg-surface-alt text-ink" },
-  pipeline: { label: "Pipeline", className: "border border-line text-muted" },
-};
-
-function daysLeft(f: QuarterForecast, now: Date): number {
-  return Math.max(0, Math.ceil((f.quarter.end.getTime() - now.getTime()) / DAY_MS));
+function headline(label: string, verdict: Verdict | null): string {
+  if (!verdict) return `${label} forecast`;
+  if (verdict.status === "onTrack") return `On track for ${label}`;
+  if (verdict.status === "needsBestCase") return `${label} needs its best-case deals`;
+  return `${label} misses quota even with best case`;
 }
 
-function Callout({
-  tone,
-  title,
-  detail,
-  href,
+function Figure({
+  label,
+  value,
+  strong = false,
 }: {
-  tone: "warn" | "bad";
-  title: string;
-  detail: string;
-  href: string;
+  label: string;
+  value: string;
+  strong?: boolean;
 }) {
-  const style = tone === "bad" ? "bg-bad-soft text-bad" : "bg-warn-soft text-warn";
   return (
-    <Link
-      href={href}
-      className={`block rounded-2xl px-4 py-3 transition hover:opacity-85 ${style}`}
-    >
-      <div className="text-sm font-semibold">{title}</div>
-      <div className="mt-0.5 text-xs opacity-90">{detail}</div>
-    </Link>
+    <div>
+      <div className="text-sm text-muted">{label}</div>
+      <div
+        className={`mt-1 font-bold tabular-nums tracking-tight ${strong ? "text-4xl" : "text-2xl"}`}
+      >
+        {value}
+      </div>
+    </div>
   );
+}
+
+function coverage(f: QuarterForecast, quota: number): string {
+  return `${((f.commit + f.bestCase + f.pipeline) / quota).toFixed(1)}×`;
 }
 
 export default async function QuarterPage() {
   const data = await pageData();
   if (!data) return null;
-  const { currency } = data;
-  const [current, ...later] = data.quarters;
+  const { currency, quota } = data;
+  const [current, next] = data.quarters;
   if (!current) return null;
-  const now = data.fetchedAt;
-  const scale = Math.max(...data.quarters.map(railTotal));
+  const verdict = quota === null ? null : verdictFor(current, quota);
+  const daysLeft = Math.max(
+    0,
+    Math.ceil((current.quarter.end.getTime() - data.fetchedAt.getTime()) / DAY_MS),
+  );
+  const deciding = current.movers.slice(0, DECIDING_DEALS);
 
   return (
     <>
-      <header className="mb-7">
-        <p className="text-sm font-medium text-accent">
-          {current.quarter.label} · {daysLeft(current, now)} days left
-        </p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight">Quarter forecast</h1>
-      </header>
+      <p className="text-sm text-muted">
+        {current.quarter.label} · {daysLeft} days left
+      </p>
+      <h1 className="mt-1 text-3xl font-bold tracking-tight md:text-4xl">
+        {headline(current.quarter.label, verdict)}
+      </h1>
 
-      <section className="card p-6 md:p-8">
-        <div className="flex flex-wrap items-end justify-between gap-6">
-          <div>
-            <div className="text-sm text-muted">Forecast floor · closed won + commit</div>
-            <div className="mt-1 text-5xl font-bold tracking-tight tabular-nums">
-              {money(current.floor, currency)}
-            </div>
-            <div className="mt-2 text-sm text-muted">
-              Upside with best case{" "}
-              <span className="font-semibold text-ink tabular-nums">
-                {money(current.upside, currency)}
-              </span>
-              {" · "}weighted open{" "}
-              <span className="font-semibold text-ink tabular-nums">
-                {money(current.weighted, currency)}
-              </span>
-            </div>
-          </div>
-          <div className="grid w-full gap-2 sm:w-72">
-            {current.commitAtRisk > 0 && (
-              <Callout
-                tone="bad"
-                title={`${money(current.commitAtRisk, currency)} of commit is at risk`}
-                detail="Commit deals with weak engagement"
-                href="/deals?outcome=open&tier=atRisk"
+      <section className="card mt-6 p-6 md:p-8">
+        <div className="grid grid-cols-2 gap-6 md:grid-cols-3">
+          <Figure label="Forecast · won + commit" value={money(current.floor, currency)} strong />
+          {verdict ? (
+            <>
+              <Figure label="Quota" value={money(verdict.quota, currency)} />
+              <Figure
+                label={verdict.gap > 0 ? "Gap to quota" : "Ahead of quota"}
+                value={money(Math.abs(verdict.gap), currency)}
               />
-            )}
-            {current.overdue.count > 0 && (
-              <Callout
-                tone="warn"
-                title={`${current.overdue.count} deals past their close date`}
-                detail={`${money(current.overdue.amount, currency)} to close or move`}
-                href="/deals?outcome=open&sort=close"
-              />
-            )}
-          </div>
+            </>
+          ) : (
+            <Figure label="With best case" value={money(current.upside, currency)} />
+          )}
         </div>
-        <div className="mt-8">
-          <QuarterRail forecast={current} scale={scale} currency={currency} />
+        <div className="mt-7">
+          <QuarterRail
+            forecast={current}
+            scale={Math.max(current.upside + current.pipeline, quota ?? 0)}
+            currency={currency}
+          />
         </div>
-      </section>
-
-      <section className="mt-5 grid gap-5 md:grid-cols-2">
-        {later.map((f) => (
-          <div key={f.quarter.key} className="card p-5">
-            <div className="flex items-baseline justify-between">
-              <h2 className="font-semibold">{f.quarter.label}</h2>
-              <span className="text-xs text-muted">{f.openCount} open deals</span>
-            </div>
-            <div className="mt-3 flex items-baseline gap-4">
-              <div>
-                <div className="text-2xl font-bold tabular-nums">{money(f.weighted, currency)}</div>
-                <div className="text-xs text-muted">weighted pipeline</div>
-              </div>
-              <div>
-                <div className="text-lg font-semibold tabular-nums text-muted">
-                  {money(f.upside, currency)}
-                </div>
-                <div className="text-xs text-muted">commit + best case</div>
-              </div>
-            </div>
-            <div className="mt-4">
-              <QuarterRail
-                forecast={f}
-                scale={scale}
-                currency={currency}
-                showLegend={false}
-                size="sm"
-              />
-            </div>
-          </div>
-        ))}
-      </section>
-
-      <section className="card mt-5 overflow-hidden">
-        <div className="px-6 pt-5">
-          <h2 className="font-semibold">Deals that decide {current.quarter.label}</h2>
-          <p className="mt-0.5 text-sm text-muted">Commit first, then the largest deals.</p>
-        </div>
-        {current.movers.length === 0 ? (
-          <div className="p-6">
-            <Notice>No open deals close this quarter.</Notice>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="mt-3 w-full min-w-[720px] text-sm">
-              <thead className="border-b border-line text-left text-xs text-muted">
-                <tr>
-                  <th className="px-6 py-2 font-medium">Deal</th>
-                  <th className="px-3 py-2 font-medium">Forecast</th>
-                  <th className="px-3 py-2 font-medium">Health</th>
-                  <th className="px-3 py-2 text-right font-medium">Amount</th>
-                  <th className="px-3 py-2 font-medium">Close</th>
-                  <th className="px-6 py-2 font-medium">Watch out</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {current.movers.map((d) => {
-                  const category = CATEGORY_STYLE[categoryOf(d.deal.probability)];
-                  return (
-                    <tr key={d.deal.id} className="hover:bg-surface-alt/60">
-                      <td className="px-6 py-3">
-                        <Link
-                          href={`/deals/${d.deal.id}`}
-                          className="font-medium hover:text-accent"
-                        >
-                          {d.deal.name}
-                        </Link>
-                        <div className="text-xs text-muted">
-                          {data.stages.get(d.deal.stageId)?.label}
-                        </div>
-                      </td>
-                      <td className="px-3 py-3">
-                        <span
-                          className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${category.className}`}
-                        >
-                          {category.label}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3">
-                        <TierBadge tier={d.tier} score={d.score} />
-                      </td>
-                      <td className="px-3 py-3 text-right font-semibold tabular-nums">
-                        {money(d.deal.amount, currency)}
-                      </td>
-                      <td className="px-3 py-3 whitespace-nowrap text-muted">
-                        {day(d.deal.closeDate)}
-                      </td>
-                      <td className="px-6 py-3">
-                        <Flags flags={d.flags} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        {!verdict && (
+          <div className="mt-6">
+            <Notice>Set QUARTER_QUOTA in Render to see the gap to target.</Notice>
           </div>
         )}
       </section>
+
+      <section className="mt-8">
+        <h2 className="text-lg font-bold">The {deciding.length} deals that decide it</h2>
+        {deciding.length === 0 ? (
+          <div className="mt-3">
+            <Notice>No open deals close this quarter.</Notice>
+          </div>
+        ) : (
+          <ol className="card mt-3 divide-y divide-line overflow-hidden">
+            {deciding.map((d) => {
+              const action = bestAction(d, data.fetchedAt);
+              return (
+                <li key={d.deal.id}>
+                  <Link
+                    href={`/deals/${d.deal.id}`}
+                    className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 py-4 transition hover:bg-surface-alt"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-semibold">{d.deal.name}</div>
+                      <div className="text-sm text-muted">
+                        {action ? action.play.title : "On track: keep the next step moving"}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold tabular-nums">{money(d.deal.amount, currency)}</div>
+                      <div className="text-xs text-muted">closes {day(d.deal.closeDate)}</div>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </section>
+
+      {next && (
+        <p className="mt-8 text-sm text-muted">
+          {next.quarter.label}: {money(next.weighted, currency)} weighted pipeline
+          {quota !== null && ` · ${coverage(next, quota)} coverage of quota`}
+        </p>
+      )}
     </>
   );
 }

@@ -14,6 +14,21 @@ export interface Stage {
   readonly probability: number;
 }
 
+export interface Company {
+  readonly name: string;
+  readonly domain: string | null;
+  readonly industry: string | null;
+  readonly employees: number | null;
+  readonly country: string | null;
+  readonly description: string | null;
+}
+
+export interface Contact {
+  readonly id: string;
+  readonly name: string;
+  readonly title: string | null;
+}
+
 /** A deal as the engine sees it: already mapped from HubSpot, no API shapes. */
 export interface Deal {
   readonly id: string;
@@ -26,6 +41,9 @@ export interface Deal {
   readonly closeDate: Date | null;
   readonly closeDateChanges: number;
   readonly contactCount: number;
+  readonly contacts: readonly Contact[];
+  readonly company: Company | null;
+  readonly owner: string | null;
   readonly activities: readonly Activity[];
   readonly nextStep: string | null;
   readonly lostReason: string | null;
